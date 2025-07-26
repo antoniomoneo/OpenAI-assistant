@@ -24,6 +24,59 @@ class OA_Assistant_Plugin {
         add_menu_page('OpenAI Assistant', 'OpenAI Assistant', 'manage_options', 'oa-assistant', [$this, 'settings_page'], 'dashicons-format-chat');
     }
 
+    public function settings_page() {
+        ?>
+        <div class="wrap">
+            <h1><?php esc_html_e('OpenAI Assistant', 'oa-assistant'); ?></h1>
+
+            <form method="post" action="options.php">
+                <?php
+                settings_fields('oa-assistant-general');
+                do_settings_sections('oa-assistant-general');
+                submit_button();
+                ?>
+            </form>
+
+            <h2><?php esc_html_e('Assistants', 'oa-assistant'); ?></h2>
+            <form method="post" action="options.php">
+                <?php
+                settings_fields('oa-assistant-configs');
+                $configs = get_option('oa_assistant_configs', []);
+                ?>
+                <table class="widefat">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e('Nombre', 'oa-assistant'); ?></th>
+                            <th><?php esc_html_e('Slug', 'oa-assistant'); ?></th>
+                            <th><?php esc_html_e('Assistant ID', 'oa-assistant'); ?></th>
+                            <th><?php esc_html_e('Instrucciones', 'oa-assistant'); ?></th>
+                            <th><?php esc_html_e('Vector Store ID', 'oa-assistant'); ?></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($configs)) : ?>
+                            <tr>
+                                <td colspan="5"><?php esc_html_e('Sin asistentes', 'oa-assistant'); ?></td>
+                            </tr>
+                        <?php else : ?>
+                            <?php foreach ($configs as $i => $cfg) : ?>
+                                <tr>
+                                    <td><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][nombre]" value="<?php echo esc_attr($cfg['nombre']); ?>" class="regular-text" /></td>
+                                    <td><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][slug]" value="<?php echo esc_attr($cfg['slug']); ?>" class="regular-text" /></td>
+                                    <td><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][assistant_id]" value="<?php echo esc_attr($cfg['assistant_id']); ?>" class="regular-text" /></td>
+                                    <td><textarea name="oa_assistant_configs[<?php echo $i; ?>][developer_instructions]" rows="2" class="regular-text"><?php echo esc_textarea($cfg['developer_instructions']); ?></textarea></td>
+                                    <td><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][vector_store_id]" value="<?php echo esc_attr($cfg['vector_store_id']); ?>" class="regular-text" /></td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+                <?php submit_button(); ?>
+            </form>
+        </div>
+        <?php
+    }
+
     public function register_settings() {
         register_setting('oa-assistant-general', 'oa_assistant_api_key', [
             'type' => 'string',
