@@ -2,7 +2,7 @@
 /*
 Plugin Name: OpenAI Assistant
 Description: Embed OpenAI Assistants via shortcode.
-Version: 2.9.20
+Version: 2.9.21
 Author: Tangible Data
 Text Domain: oa-assistant
 */
@@ -18,6 +18,8 @@ class OA_Assistant_Plugin {
         add_action('wp_enqueue_scripts', [$this, 'enqueue_frontend_assets']);
         add_action('wp_ajax_oa_assistant_chat', [$this, 'ajax_chat']);
         add_action('wp_ajax_nopriv_oa_assistant_chat', [$this, 'ajax_chat']);
+        add_filter('query_vars', [$this, 'register_query_vars']);
+        add_action('template_redirect', [$this, 'maybe_render_embed']);
     }
 
     public function add_admin_menu() {
@@ -115,17 +117,44 @@ class OA_Assistant_Plugin {
 
     public function enqueue_admin_assets($hook) {
         if ($hook !== 'toplevel_page_oa-assistant') return;
-        wp_enqueue_style('oa-admin-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.20');
-        wp_enqueue_script('oa-admin-js', plugin_dir_url(__FILE__).'js/assistant.js', ['jquery'], '2.9.20', true);
+        wp_enqueue_style('oa-admin-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.21');
+        wp_enqueue_script('oa-admin-js', plugin_dir_url(__FILE__).'js/assistant.js', ['jquery'], '2.9.21', true);
     }
 
     public function enqueue_frontend_assets() {
-        wp_enqueue_style('oa-frontend-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.20');
-        wp_enqueue_script('oa-frontend-js', plugin_dir_url(__FILE__).'js/assistant-frontend.js', ['jquery'], '2.9.20', true);
+        wp_enqueue_style('oa-frontend-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.21');
+        wp_enqueue_script('oa-frontend-js', plugin_dir_url(__FILE__).'js/assistant-frontend.js', ['jquery'], '2.9.21', true);
     }
 
     public function register_shortcodes() {
         add_shortcode('openai_assistant', [$this, 'render_assistant_shortcode']);
+    }
+
+    public function register_query_vars($vars) {
+        $vars[] = 'oa_assistant_embed';
+        $vars[] = 'oa_assistant_slug';
+        return $vars;
+    }
+
+    public function maybe_render_embed() {
+        if (!get_query_var('oa_assistant_embed')) {
+            return;
+        }
+
+        $slug = get_query_var('oa_assistant_slug');
+        if (!$slug) {
+            status_header(400);
+            echo 'Missing assistant slug';
+            exit;
+        }
+
+        echo '<!DOCTYPE html><html><head>';
+        wp_head();
+        echo '</head><body>';
+        echo do_shortcode('[openai_assistant slug="'.esc_attr($slug).'"]');
+        wp_footer();
+        echo '</body></html>';
+        exit;
     }
 
     public function render_assistant_shortcode($atts) {
@@ -141,6 +170,18 @@ class OA_Assistant_Plugin {
             return '<p style="color:red;">Assistant “'.esc_html($atts['slug']).'” no encontrado.</p>';
         }
         $c = array_pop($cfgs);
+
+        if (function_exists('is_amp_endpoint') && is_amp_endpoint()) {
+            $src = add_query_arg([
+                'oa_assistant_embed' => '1',
+                'oa_assistant_slug'  => $c['slug'],
+            ], home_url('/'));
+            return sprintf(
+                '<amp-iframe width="400" height="320" layout="fixed-height" sandbox="allow-scripts allow-same-origin" frameborder="0" src="%s"></amp-iframe>',
+                esc_url($src)
+            );
+        }
+
         $ajax_url = esc_attr(admin_url('admin-ajax.php'));
         $nonce    = esc_attr(wp_create_nonce('oa_assistant_chat'));
 
