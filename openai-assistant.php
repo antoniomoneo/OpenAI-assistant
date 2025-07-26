@@ -2,7 +2,7 @@
 /*
 Plugin Name: OpenAI Assistant
 Description: Embed OpenAI Assistants via shortcode.
-Version: 2.9.22
+Version: 2.9.23
 Author: Tangible Data
 Text Domain: oa-assistant
 */
@@ -117,13 +117,13 @@ class OA_Assistant_Plugin {
 
     public function enqueue_admin_assets($hook) {
         if ($hook !== 'toplevel_page_oa-assistant') return;
-        wp_enqueue_style('oa-admin-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.22');
-        wp_enqueue_script('oa-admin-js', plugin_dir_url(__FILE__).'js/assistant.js', ['jquery'], '2.9.22', true);
+        wp_enqueue_style('oa-admin-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.23');
+        wp_enqueue_script('oa-admin-js', plugin_dir_url(__FILE__).'js/assistant.js', ['jquery'], '2.9.23', true);
     }
 
     public function enqueue_frontend_assets() {
-        wp_enqueue_style('oa-frontend-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.22');
-        wp_enqueue_script('oa-frontend-js', plugin_dir_url(__FILE__).'js/assistant-frontend.js', ['jquery'], '2.9.22', true);
+        wp_enqueue_style('oa-frontend-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.23');
+        wp_enqueue_script('oa-frontend-js', plugin_dir_url(__FILE__).'js/assistant-frontend.js', ['jquery'], '2.9.23', true);
     }
 
     public function register_shortcodes() {
@@ -177,7 +177,7 @@ class OA_Assistant_Plugin {
                 'oa_assistant_slug'  => $c['slug'],
             ], home_url('/'));
             return sprintf(
-                '<amp-iframe width="400" height="320" layout="responsive" sandbox="allow-scripts allow-same-origin" frameborder="0" src="%s"></amp-iframe>',
+                '<amp-iframe width="400" height="320" layout="responsive" sandbox="allow-scripts allow-same-origin allow-forms" frameborder="0" src="%s"></amp-iframe>',
                 esc_url($src)
             );
         }
