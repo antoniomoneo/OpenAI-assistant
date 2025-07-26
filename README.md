@@ -3,7 +3,9 @@
 This plugin allows embedding OpenAI Assistants via a shortcode.
 
 The administration page lets you manage multiple assistants. You can add new
-rows for assistants or remove existing ones before saving the settings.
+rows for assistants or remove existing ones before saving the settings. It also
+includes a recovery button that emails the stored API key to the site admin in
+case you forget it.
 
 ## File structure
 

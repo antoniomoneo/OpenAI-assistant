@@ -18,6 +18,7 @@ class OA_Assistant_Plugin {
         add_action('wp_enqueue_scripts', [$this, 'enqueue_frontend_assets']);
         add_action('wp_ajax_oa_assistant_chat', [$this, 'ajax_chat']);
         add_action('wp_ajax_nopriv_oa_assistant_chat', [$this, 'ajax_chat']);
+        add_action('wp_ajax_oa_assistant_send_key', [$this, 'ajax_send_key']);
         add_filter('query_vars', [$this, 'register_query_vars']);
         add_action('template_redirect', [$this, 'maybe_render_embed']);
     }
@@ -104,7 +105,9 @@ class OA_Assistant_Plugin {
             echo '<p>Tu clave secreta de OpenAI.</p>';
         }, 'oa-assistant-general');
         add_settings_field('oa_assistant_api_key', 'OpenAI API Key', function(){
-            printf('<input type="password" id="oa_assistant_api_key" name="oa_assistant_api_key" value="%s" class="regular-text" />', esc_attr(get_option('oa_assistant_api_key','')));
+            $val = esc_attr(get_option('oa_assistant_api_key', ''));
+            echo '<input type="password" id="oa_assistant_api_key" name="oa_assistant_api_key" value="'.$val.'" class="regular-text" /> ';
+            echo '<button type="button" class="button oa-recover-key">'.esc_html__('Recuperar', 'oa-assistant').'</button>';
         }, 'oa-assistant-general', 'oa-assistant-api-section');
 
         register_setting('oa-assistant-configs', 'oa_assistant_configs', [
@@ -134,6 +137,10 @@ class OA_Assistant_Plugin {
         if ($hook !== 'toplevel_page_oa-assistant') return;
         wp_enqueue_style('oa-admin-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.25');
         wp_enqueue_script('oa-admin-js', plugin_dir_url(__FILE__).'js/assistant.js', ['jquery'], '2.9.25', true);
+        wp_localize_script('oa-admin-js', 'oaAssistant', [
+            'ajax_url' => admin_url('admin-ajax.php'),
+            'nonce'    => wp_create_nonce('oa_assistant_send_key'),
+        ]);
     }
 
     public function enqueue_frontend_assets() {
@@ -264,6 +271,25 @@ class OA_Assistant_Plugin {
         }
 
         wp_send_json_success(['reply' => $reply]);
+    }
+
+    public function ajax_send_key() {
+        check_ajax_referer('oa_assistant_send_key', 'nonce');
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized', 403);
+        }
+        $key = get_option('oa_assistant_api_key', '');
+        if (!$key) {
+            wp_send_json_error('No API key');
+        }
+        $subject = __('OpenAI Assistant API Key', 'oa-assistant');
+        $message = sprintf(__('Tu API Key: %s', 'oa-assistant'), $key);
+        $sent = wp_mail(get_option('admin_email'), $subject, $message);
+        if ($sent) {
+            wp_send_json_success('Email enviado');
+        } else {
+            wp_send_json_error('No se pudo enviar el email', 500);
+        }
     }
 
     // Placeholder: implement your vector DB retrieval logic
