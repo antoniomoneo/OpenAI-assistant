@@ -23,4 +23,22 @@ jQuery(function($){
     e.preventDefault();
     $(this).closest('tr').remove();
   });
+
+  $('.oa-recover-key').on('click', function(e){
+    e.preventDefault();
+    $.ajax({
+      url: oaAssistant.ajax_url,
+      method: 'POST',
+      dataType: 'json',
+      data: {
+        action: 'oa_assistant_send_key',
+        nonce: oaAssistant.nonce
+      }
+    }).done(function(res){
+      alert(res.success ? 'Email enviado' : 'Error: ' + res.data);
+    }).fail(function(xhr){
+      var msg = xhr.responseJSON && xhr.responseJSON.data ? xhr.responseJSON.data : 'Error al enviar';
+      alert(msg);
+    });
+  });
 });
