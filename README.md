@@ -11,9 +11,7 @@ This plugin allows embedding OpenAI Assistants via a shortcode.
 
 ## AMP/mobile support
 
-When the shortcode is used inside an AMP page, the plugin embeds the chat in an
-`amp-iframe`. The iframe loads a non-AMP version of the chat so the full
-JavaScript functionality works on mobile devices. The iframe now uses a
-`responsive` layout so it adapts to smaller screens and includes the
-`allow-forms` sandbox permission so the chat input works correctly. No
-configuration is required.
+The plugin no longer embeds the chat in an `amp-iframe`. If you need to use the
+shortcode on a page that is served as AMP, disable the AMP version of that page
+so the normal responsive layout loads. This ensures the chat works correctly on
+mobile devices.
