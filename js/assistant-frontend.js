@@ -20,7 +20,7 @@ jQuery(function($){
       }).fail(function(){
         msgs.append('<div class="msg error">Error al enviar</div>');
       });
-      w[0].scrollTop = w[0].scrollHeight;
+      msgs[0].scrollTop = msgs[0].scrollHeight;
     }
     w.find('.oa-form').on('submit', function(e){e.preventDefault(); sendMessage(input.val().trim());});
     input.on('keypress', function(e){ if(e.which===13){e.preventDefault(); sendMessage(input.val().trim());}});
