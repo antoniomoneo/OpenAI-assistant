@@ -8,3 +8,9 @@ This plugin allows embedding OpenAI Assistants via a shortcode.
 - `css/assistant.css` – plugin styles.
 - `js/assistant.js` – admin scripts.
 - `js/assistant-frontend.js` – frontend scripts.
+
+## AMP/mobile support
+
+When the shortcode is used inside an AMP page, the plugin now embeds the chat in
+an `amp-iframe`. The iframe loads a non-AMP version of the chat so the full
+JavaScript functionality works on mobile devices. No configuration is required.
