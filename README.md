@@ -2,11 +2,14 @@
 
 This plugin allows embedding OpenAI Assistants via a shortcode.
 
+The administration page lets you manage multiple assistants. You can add new
+rows for assistants or remove existing ones before saving the settings.
+
 ## File structure
 
 - `openai-assistant.php` – main plugin file.
 - `css/assistant.css` – plugin styles.
-- `js/assistant.js` – admin scripts.
+- `js/assistant.js` – admin scripts (add/remove assistants).
 - `js/assistant-frontend.js` – frontend scripts.
 
 ## AMP/mobile support
