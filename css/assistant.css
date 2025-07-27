@@ -1,5 +1,6 @@
 .oa-assistant-chat{border:1px solid #ddd;padding:10px;max-width:400px;width:100%;box-sizing:border-box;}
 .oa-messages{height:200px;overflow-y:auto;margin-bottom:10px;}
+.oa-debug-log{height:100px;overflow-y:auto;margin-bottom:10px;border:1px dashed #ccc;padding:5px;font-size:12px;white-space:pre-wrap;}
 .msg.user{text-align:right;}
 .msg.bot{text-align:left;}
 .oa-form input{width:70%;}

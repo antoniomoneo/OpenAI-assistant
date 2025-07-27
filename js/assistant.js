@@ -1,4 +1,4 @@
-// Admin JS for OpenAI Assistant v2.9.26
+// Admin JS for OpenAI Assistant v2.9.27
 jQuery(function($){
   const $tbody = $('.oa-assistants-table tbody');
   const template = $('#oa-row-template').html();

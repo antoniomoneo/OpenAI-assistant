@@ -4,7 +4,9 @@ jQuery(function($){
         slug=w.attr('data-slug'),
         ajaxUrl=w.attr('data-ajax'),
         nonce=w.attr('data-nonce'),
+        debug=w.data('debug')==1,
         msgs=w.find('.oa-messages'),
+        debugLog=w.find('.oa-debug-log'),
         input=w.find('input[name="user_message"]');
     function sendMessage(text){
       if(!text) return;
@@ -17,6 +19,9 @@ jQuery(function($){
         message:text
       }).done(function(res){
         msgs.append('<div class="msg bot">'+(res.success?res.data.reply:res.data)+'</div>');
+        if(debug && res.success && res.data.debug){
+          debugLog.text(debugLog.text()+res.data.debug+'\n');
+        }
       }).fail(function(){
         msgs.append('<div class="msg error">Error al enviar</div>');
       });
