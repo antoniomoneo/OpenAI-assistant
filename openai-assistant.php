@@ -55,13 +55,12 @@ class OA_Assistant_Plugin {
                             <th><?php esc_html_e('Assistant ID', 'oa-assistant'); ?></th>
                             <th><?php esc_html_e('Instrucciones', 'oa-assistant'); ?></th>
                             <th><?php esc_html_e('Vector Store ID', 'oa-assistant'); ?></th>
-                            <th><?php esc_html_e('Acciones', 'oa-assistant'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($configs)) : ?>
                             <tr>
-                                <td colspan="6"><?php esc_html_e('Sin asistentes', 'oa-assistant'); ?></td>
+                                <td colspan="5"><?php esc_html_e('Sin asistentes', 'oa-assistant'); ?></td>
                             </tr>
                         <?php else : ?>
                             <?php foreach ($configs as $i => $cfg) : ?>
@@ -70,8 +69,10 @@ class OA_Assistant_Plugin {
                                     <td><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][slug]" value="<?php echo esc_attr($cfg['slug']); ?>" class="regular-text" /></td>
                                     <td><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][assistant_id]" value="<?php echo esc_attr($cfg['assistant_id']); ?>" class="regular-text" /></td>
                                     <td><textarea name="oa_assistant_configs[<?php echo $i; ?>][developer_instructions]" rows="2" class="regular-text"><?php echo esc_textarea($cfg['developer_instructions']); ?></textarea></td>
-                                    <td><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][vector_store_id]" value="<?php echo esc_attr($cfg['vector_store_id']); ?>" class="regular-text" /></td>
-                                    <td><button type="button" class="button-link-delete oa-remove-assistant"><?php esc_html_e('Eliminar', 'oa-assistant'); ?></button></td>
+                                    <td>
+                                        <input type="text" name="oa_assistant_configs[<?php echo $i; ?>][vector_store_id]" value="<?php echo esc_attr($cfg['vector_store_id']); ?>" class="regular-text" />
+                                        <button type="button" class="button-link-delete oa-remove-assistant"><?php esc_html_e('Eliminar', 'oa-assistant'); ?></button>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -84,8 +85,10 @@ class OA_Assistant_Plugin {
                         <td><input type="text" name="oa_assistant_configs[__i__][slug]" class="regular-text" /></td>
                         <td><input type="text" name="oa_assistant_configs[__i__][assistant_id]" class="regular-text" /></td>
                         <td><textarea name="oa_assistant_configs[__i__][developer_instructions]" rows="2" class="regular-text"></textarea></td>
-                        <td><input type="text" name="oa_assistant_configs[__i__][vector_store_id]" class="regular-text" /></td>
-                        <td><button type="button" class="button-link-delete oa-remove-assistant"><?php esc_html_e('Eliminar', 'oa-assistant'); ?></button></td>
+                        <td>
+                            <input type="text" name="oa_assistant_configs[__i__][vector_store_id]" class="regular-text" />
+                            <button type="button" class="button-link-delete oa-remove-assistant"><?php esc_html_e('Eliminar', 'oa-assistant'); ?></button>
+                        </td>
                     </tr>
                 </script>
                 <p>
