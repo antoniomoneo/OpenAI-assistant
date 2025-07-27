@@ -2,7 +2,7 @@
 /*
 Plugin Name: OpenAI Assistant
 Description: Embed OpenAI Assistants via shortcode.
-Version: 2.9.25
+Version: 2.9.26
 Author: Tangible Data
 Text Domain: oa-assistant
 */
@@ -55,12 +55,14 @@ class OA_Assistant_Plugin {
                             <th><?php esc_html_e('Assistant ID', 'oa-assistant'); ?></th>
                             <th><?php esc_html_e('Instrucciones', 'oa-assistant'); ?></th>
                             <th><?php esc_html_e('Vector Store ID', 'oa-assistant'); ?></th>
+                            <th><?php esc_html_e('Creado', 'oa-assistant'); ?></th>
+                            <th><?php esc_html_e('Acciones', 'oa-assistant'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($configs)) : ?>
                             <tr>
-                                <td colspan="5"><?php esc_html_e('Sin asistentes', 'oa-assistant'); ?></td>
+                                <td colspan="7"><?php esc_html_e('Sin asistentes', 'oa-assistant'); ?></td>
                             </tr>
                         <?php else : ?>
                             <?php foreach ($configs as $i => $cfg) : ?>
@@ -69,10 +71,12 @@ class OA_Assistant_Plugin {
                                     <td><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][slug]" value="<?php echo esc_attr($cfg['slug']); ?>" class="regular-text" /></td>
                                     <td><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][assistant_id]" value="<?php echo esc_attr($cfg['assistant_id']); ?>" class="regular-text" /></td>
                                     <td><textarea name="oa_assistant_configs[<?php echo $i; ?>][developer_instructions]" rows="2" class="regular-text"><?php echo esc_textarea($cfg['developer_instructions']); ?></textarea></td>
+                                    <td><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][vector_store_id]" value="<?php echo esc_attr($cfg['vector_store_id']); ?>" class="regular-text" /></td>
                                     <td>
-                                        <input type="text" name="oa_assistant_configs[<?php echo $i; ?>][vector_store_id]" value="<?php echo esc_attr($cfg['vector_store_id']); ?>" class="regular-text" />
-                                        <button type="button" class="button-link-delete oa-remove-assistant"><?php esc_html_e('Eliminar', 'oa-assistant'); ?></button>
+                                        <?php echo esc_html($cfg['created_at'] ?? ''); ?>
+                                        <input type="hidden" name="oa_assistant_configs[<?php echo $i; ?>][created_at]" value="<?php echo esc_attr($cfg['created_at'] ?? ''); ?>" class="created-at-field" />
                                     </td>
+                                    <td><button type="button" class="button-link-delete oa-remove-assistant"><?php esc_html_e('Eliminar asistente', 'oa-assistant'); ?></button></td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php endif; ?>
@@ -85,10 +89,9 @@ class OA_Assistant_Plugin {
                         <td><input type="text" name="oa_assistant_configs[__i__][slug]" class="regular-text" /></td>
                         <td><input type="text" name="oa_assistant_configs[__i__][assistant_id]" class="regular-text" /></td>
                         <td><textarea name="oa_assistant_configs[__i__][developer_instructions]" rows="2" class="regular-text"></textarea></td>
-                        <td>
-                            <input type="text" name="oa_assistant_configs[__i__][vector_store_id]" class="regular-text" />
-                            <button type="button" class="button-link-delete oa-remove-assistant"><?php esc_html_e('Eliminar', 'oa-assistant'); ?></button>
-                        </td>
+                        <td><input type="text" name="oa_assistant_configs[__i__][vector_store_id]" class="regular-text" /></td>
+                        <td><span class="creation-date"></span><input type="hidden" name="oa_assistant_configs[__i__][created_at]" class="created-at-field" value="" /></td>
+                        <td><button type="button" class="button-link-delete oa-remove-assistant"><?php esc_html_e('Eliminar asistente', 'oa-assistant'); ?></button></td>
                     </tr>
                 </script>
                 <p>
@@ -133,6 +136,7 @@ class OA_Assistant_Plugin {
                 'assistant_id' => sanitize_text_field($cfg['assistant_id'] ?? ''),
                 'developer_instructions' => sanitize_textarea_field($cfg['developer_instructions'] ?? ''),
                 'vector_store_id' => sanitize_text_field($cfg['vector_store_id'] ?? ''),
+                'created_at' => sanitize_text_field($cfg['created_at'] ?? current_time('mysql')),
             ];
         }
         return $sanitized;
@@ -140,8 +144,8 @@ class OA_Assistant_Plugin {
 
     public function enqueue_admin_assets($hook) {
         if ($hook !== 'toplevel_page_oa-assistant') return;
-        wp_enqueue_style('oa-admin-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.25');
-        wp_enqueue_script('oa-admin-js', plugin_dir_url(__FILE__).'js/assistant.js', ['jquery'], '2.9.25', true);
+        wp_enqueue_style('oa-admin-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.26');
+        wp_enqueue_script('oa-admin-js', plugin_dir_url(__FILE__).'js/assistant.js', ['jquery'], '2.9.26', true);
         wp_localize_script('oa-admin-js', 'oaAssistant', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce'    => wp_create_nonce('oa_assistant_send_key'),
@@ -149,8 +153,8 @@ class OA_Assistant_Plugin {
     }
 
     public function enqueue_frontend_assets() {
-        wp_enqueue_style('oa-frontend-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.25');
-        wp_enqueue_script('oa-frontend-js', plugin_dir_url(__FILE__).'js/assistant-frontend.js', ['jquery'], '2.9.25', true);
+        wp_enqueue_style('oa-frontend-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.26');
+        wp_enqueue_script('oa-frontend-js', plugin_dir_url(__FILE__).'js/assistant-frontend.js', ['jquery'], '2.9.26', true);
     }
 
     public function register_shortcodes() {
