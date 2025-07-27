@@ -12,12 +12,19 @@ jQuery(function($){
     return max + 1;
   }
 
-  $('.oa-add-assistant').on('click', function(e){
-    e.preventDefault();
+  function addRow(){
     const i = nextIndex();
     const row = template.replace(/__i__/g, i);
     $tbody.append(row);
+  }
+
+  $('.oa-add-assistant').on('click', function(e){
+    e.preventDefault();
+    addRow();
   });
+
+  // Always keep one blank row for adding a new assistant
+  addRow();
 
   $tbody.on('click', '.oa-remove-assistant', function(e){
     e.preventDefault();
