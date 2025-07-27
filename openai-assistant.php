@@ -2,7 +2,7 @@
 /*
 Plugin Name: OpenAI Assistant
 Description: Embed OpenAI Assistants via shortcode.
-Version: 2.9.26
+Version: 2.9.27
 Author: Tangible Data
 Text Domain: oa-assistant
 */
@@ -56,13 +56,14 @@ class OA_Assistant_Plugin {
                             <th><?php esc_html_e('Instrucciones', 'oa-assistant'); ?></th>
                             <th><?php esc_html_e('Vector Store ID', 'oa-assistant'); ?></th>
                             <th><?php esc_html_e('Creado', 'oa-assistant'); ?></th>
+                            <th><?php esc_html_e('Debug', 'oa-assistant'); ?></th>
                             <th><?php esc_html_e('Acciones', 'oa-assistant'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($configs)) : ?>
                             <tr>
-                                <td colspan="7"><?php esc_html_e('Sin asistentes', 'oa-assistant'); ?></td>
+                                <td colspan="8"><?php esc_html_e('Sin asistentes', 'oa-assistant'); ?></td>
                             </tr>
                         <?php else : ?>
                             <?php foreach ($configs as $i => $cfg) : ?>
@@ -76,6 +77,7 @@ class OA_Assistant_Plugin {
                                         <?php echo esc_html($cfg['created_at'] ?? ''); ?>
                                         <input type="hidden" name="oa_assistant_configs[<?php echo $i; ?>][created_at]" value="<?php echo esc_attr($cfg['created_at'] ?? ''); ?>" class="created-at-field" />
                                     </td>
+                                    <td><input type="checkbox" name="oa_assistant_configs[<?php echo $i; ?>][debug]" <?php checked(!empty($cfg['debug'])); ?> /></td>
                                     <td><button type="button" class="button-link-delete oa-remove-assistant"><?php esc_html_e('Eliminar asistente', 'oa-assistant'); ?></button></td>
                                 </tr>
                             <?php endforeach; ?>
@@ -91,6 +93,7 @@ class OA_Assistant_Plugin {
                         <td><textarea name="oa_assistant_configs[__i__][developer_instructions]" rows="2" class="regular-text"></textarea></td>
                         <td><input type="text" name="oa_assistant_configs[__i__][vector_store_id]" class="regular-text" /></td>
                         <td><span class="creation-date"></span><input type="hidden" name="oa_assistant_configs[__i__][created_at]" class="created-at-field" value="" /></td>
+                        <td><input type="checkbox" name="oa_assistant_configs[__i__][debug]" /></td>
                         <td><button type="button" class="button-link-delete oa-remove-assistant"><?php esc_html_e('Eliminar asistente', 'oa-assistant'); ?></button></td>
                     </tr>
                 </script>
@@ -137,6 +140,7 @@ class OA_Assistant_Plugin {
                 'developer_instructions' => sanitize_textarea_field($cfg['developer_instructions'] ?? ''),
                 'vector_store_id' => sanitize_text_field($cfg['vector_store_id'] ?? ''),
                 'created_at' => sanitize_text_field($cfg['created_at'] ?? current_time('mysql')),
+                'debug' => empty($cfg['debug']) ? 0 : 1,
             ];
         }
         return $sanitized;
@@ -144,8 +148,8 @@ class OA_Assistant_Plugin {
 
     public function enqueue_admin_assets($hook) {
         if ($hook !== 'toplevel_page_oa-assistant') return;
-        wp_enqueue_style('oa-admin-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.26');
-        wp_enqueue_script('oa-admin-js', plugin_dir_url(__FILE__).'js/assistant.js', ['jquery'], '2.9.26', true);
+        wp_enqueue_style('oa-admin-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.27');
+        wp_enqueue_script('oa-admin-js', plugin_dir_url(__FILE__).'js/assistant.js', ['jquery'], '2.9.27', true);
         wp_localize_script('oa-admin-js', 'oaAssistant', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce'    => wp_create_nonce('oa_assistant_send_key'),
@@ -153,8 +157,8 @@ class OA_Assistant_Plugin {
     }
 
     public function enqueue_frontend_assets() {
-        wp_enqueue_style('oa-frontend-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.26');
-        wp_enqueue_script('oa-frontend-js', plugin_dir_url(__FILE__).'js/assistant-frontend.js', ['jquery'], '2.9.26', true);
+        wp_enqueue_style('oa-frontend-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.27');
+        wp_enqueue_script('oa-frontend-js', plugin_dir_url(__FILE__).'js/assistant-frontend.js', ['jquery'], '2.9.27', true);
     }
 
     public function register_shortcodes() {
@@ -210,8 +214,12 @@ class OA_Assistant_Plugin {
         <div class="oa-assistant-chat"
              data-slug="<?php echo esc_attr($c['slug']); ?>"
              data-ajax="<?php echo $ajax_url; ?>"
-             data-nonce="<?php echo $nonce; ?>">
+             data-nonce="<?php echo $nonce; ?>"
+             data-debug="<?php echo !empty($c['debug']) ? '1' : '0'; ?>">
           <div class="oa-messages"></div>
+          <?php if (!empty($c['debug'])) : ?>
+          <pre class="oa-debug-log"></pre>
+          <?php endif; ?>
           <form class="oa-form">
             <input type="text" name="user_message" placeholder="Escribe tu mensaje…" required />
             <button type="submit">Enviar</button>
@@ -236,13 +244,24 @@ class OA_Assistant_Plugin {
             wp_send_json_error('Assistant no encontrado');
         }
         $c = array_pop($cfgs);
+        $debug_lines = [];
+        if (!empty($c['debug'])) {
+            $debug_lines[] = 'Slug: ' . $slug;
+            $debug_lines[] = 'Mensaje usuario: ' . $msg;
+        }
 
         // Retrieve context from vector store (implement your function)
         $context_chunks = $this->get_vector_context($c['vector_store_id'], $msg);
+        if (!empty($c['debug'])) {
+            $debug_lines[] = 'Contexto: ' . implode(" | ", $context_chunks);
+        }
 
         $messages = [];
         if (!empty($c['developer_instructions'])) {
             $messages[] = ['role' => 'system', 'content' => $c['developer_instructions']];
+            if (!empty($c['debug'])) {
+                $debug_lines[] = 'Instrucciones: ' . $c['developer_instructions'];
+            }
         }
         if (!empty($context_chunks)) {
             $messages[] = [
@@ -260,6 +279,9 @@ class OA_Assistant_Plugin {
             'messages' => $messages,
             'temperature' => 0.7,
         ];
+        if (!empty($c['debug'])) {
+            $debug_lines[] = 'Payload: ' . wp_json_encode($payload);
+        }
 
         $response = wp_remote_post('https://api.openai.com/v1/chat/completions', [
             'headers' => [
@@ -275,11 +297,18 @@ class OA_Assistant_Plugin {
 
         $body = json_decode(wp_remote_retrieve_body($response), true);
         $reply = $body['choices'][0]['message']['content'] ?? '';
+        if (!empty($c['debug'])) {
+            $debug_lines[] = 'Respuesta: ' . $reply;
+        }
         if (!$reply) {
             wp_send_json_error('No llegó respuesta del assistant');
         }
 
-        wp_send_json_success(['reply' => $reply]);
+        $result = ['reply' => $reply];
+        if (!empty($c['debug'])) {
+            $result['debug'] = implode("\n", $debug_lines);
+        }
+        wp_send_json_success($result);
     }
 
     public function ajax_send_key() {
