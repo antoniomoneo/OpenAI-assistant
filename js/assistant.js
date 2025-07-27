@@ -1,4 +1,4 @@
-// Admin JS for OpenAI Assistant v2.9.25
+// Admin JS for OpenAI Assistant v2.9.26
 jQuery(function($){
   const $tbody = $('.oa-assistants-table tbody');
   const template = $('#oa-row-template').html();
@@ -14,7 +14,10 @@ jQuery(function($){
 
   function addRow(){
     const i = nextIndex();
-    const row = template.replace(/__i__/g, i);
+    const row = $(template.replace(/__i__/g, i));
+    const now = new Date().toISOString();
+    row.find('.created-at-field').val(now);
+    row.find('.creation-date').text(now.split('T')[0]);
     $tbody.append(row);
   }
 
