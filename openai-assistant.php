@@ -46,6 +46,7 @@ class OA_Assistant_Plugin {
                 settings_fields('oa-assistant-configs');
                 $configs = get_option('oa_assistant_configs', []);
                 ?>
+                <div class="oa-table-wrap">
                 <table class="widefat oa-assistants-table">
                     <thead>
                         <tr>
@@ -76,6 +77,7 @@ class OA_Assistant_Plugin {
                         <?php endif; ?>
                     </tbody>
                 </table>
+                </div>
                 <script type="text/html" id="oa-row-template">
                     <tr data-index="__i__">
                         <td><input type="text" name="oa_assistant_configs[__i__][nombre]" class="regular-text" /></td>
