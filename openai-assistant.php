@@ -17,6 +17,8 @@ class OA_Assistant_Plugin {
         add_action('admin_menu', [$this, 'add_admin_menu']);
         add_action('admin_init', [$this, 'register_settings']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_assets']);
+        add_action('admin_post_oa_add_assistant', [$this, 'handle_add_assistant']);
+        add_action('admin_post_oa_delete_assistant', [$this, 'handle_delete_assistant']);
         add_action('init', [$this, 'register_shortcodes']);
         add_action('wp_enqueue_scripts', [$this, 'enqueue_frontend_assets']);
         add_action('wp_ajax_oa_assistant_chat', [$this, 'ajax_chat']);
@@ -35,6 +37,8 @@ class OA_Assistant_Plugin {
         <div class="wrap">
             <h1><?php esc_html_e('OpenAI Assistant', 'oa-assistant'); ?></h1>
 
+            <h2><?php esc_html_e('API Key', 'oa-assistant'); ?></h2>
+            <p><?php esc_html_e('Clave secreta de OpenAI para autenticar las llamadas a la API.', 'oa-assistant'); ?></p>
             <form method="post" action="options.php">
                 <?php
                 settings_fields('oa-assistant-general');
@@ -43,89 +47,63 @@ class OA_Assistant_Plugin {
                 ?>
             </form>
 
-            <h2><?php esc_html_e('Assistants', 'oa-assistant'); ?></h2>
-            <form method="post" action="options.php">
-                <?php
-                settings_fields('oa-assistant-configs');
-                $configs = get_option('oa_assistant_configs', []);
-                ?>
-                <div class="oa-table-wrap">
-                    <table class="widefat oa-assistants-table">
-                        <thead>
-                            <tr>
-                                <th class="oa-old-field"><?php esc_html_e('Nombre', 'oa-assistant'); ?></th>
-                                <th class="oa-old-field"><?php esc_html_e('Slug', 'oa-assistant'); ?></th>
-                                <th class="oa-old-field"><?php esc_html_e('Assistant ID', 'oa-assistant'); ?></th>
-                                <th class="oa-old-field"><?php esc_html_e('Instrucciones', 'oa-assistant'); ?></th>
-                                <th class="oa-old-field"><?php esc_html_e('Vector Store ID', 'oa-assistant'); ?></th>
-                                <th><?php esc_html_e('Modelo', 'oa-assistant'); ?></th>
-                                <th><?php esc_html_e('Descripción', 'oa-assistant'); ?></th>
-                                <th class="oa-old-field"><?php esc_html_e('Creado', 'oa-assistant'); ?></th>
-                                <th class="oa-old-field"><?php esc_html_e('Debug', 'oa-assistant'); ?></th>
-                                <th><?php esc_html_e('Acciones', 'oa-assistant'); ?></th>
-                            </tr>
-                        </thead>
+            <h2><?php esc_html_e('Asistentes configurados', 'oa-assistant'); ?></h2>
+            <div class="oa-table-wrap">
+                <table class="widefat oa-assistants-table">
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e('Nombre', 'oa-assistant'); ?></th>
+                            <th><?php esc_html_e('Slug', 'oa-assistant'); ?></th>
+                            <th><?php esc_html_e('Assistant ID', 'oa-assistant'); ?></th>
+                            <th><?php esc_html_e('Acciones', 'oa-assistant'); ?></th>
+                        </tr>
+                    </thead>
                     <tbody>
-                        <?php if (empty($configs)) : ?>
-                            <tr>
-                                <td colspan="10"><?php esc_html_e('Sin asistentes', 'oa-assistant'); ?></td>
-                            </tr>
-                        <?php else : ?>
-                            <?php foreach ($configs as $i => $cfg) : ?>
-                                <tr data-index="<?php echo $i; ?>">
-                                    <td class="oa-old-field"><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][nombre]" value="<?php echo esc_attr($cfg['nombre']); ?>" class="regular-text" /></td>
-                                    <td class="oa-old-field"><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][slug]" value="<?php echo esc_attr($cfg['slug']); ?>" class="regular-text" /></td>
-                                    <td class="oa-old-field"><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][assistant_id]" value="<?php echo esc_attr($cfg['assistant_id']); ?>" class="regular-text" /></td>
-                                    <td class="oa-old-field"><textarea name="oa_assistant_configs[<?php echo $i; ?>][developer_instructions]" rows="2" class="regular-text"><?php echo esc_textarea($cfg['developer_instructions']); ?></textarea></td>
-                                    <td class="oa-old-field"><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][vector_store_id]" value="<?php echo esc_attr($cfg['vector_store_id']); ?>" class="regular-text" /></td>
-                                    <td><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][model]" value="<?php echo esc_attr($cfg['model'] ?? ''); ?>" class="regular-text" /></td>
-                                    <td><textarea name="oa_assistant_configs[<?php echo $i; ?>][description]" rows="2" class="regular-text"><?php echo esc_textarea($cfg['description'] ?? ''); ?></textarea></td>
-                                    <td class="oa-old-field">
-                                        <?php echo esc_html($cfg['created_at'] ?? ''); ?>
-                                        <input type="hidden" name="oa_assistant_configs[<?php echo $i; ?>][created_at]" value="<?php echo esc_attr($cfg['created_at'] ?? ''); ?>" class="created-at-field" />
-                                    </td>
-                                    <td class="oa-old-field"><input type="checkbox" name="oa_assistant_configs[<?php echo $i; ?>][debug]" <?php checked(!empty($cfg['debug'])); ?> /></td>
-                                    <td><button type="button" class="button-link-delete oa-remove-assistant"><?php esc_html_e('Eliminar asistente', 'oa-assistant'); ?></button></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
+                        <?php
+                        $list = get_option('openai_assistants_list', []);
+                        if (empty($list)) :
+                        ?>
+                        <tr><td colspan="4"><?php esc_html_e('Sin asistentes', 'oa-assistant'); ?></td></tr>
+                        <?php else :
+                            foreach ($list as $slug => $a) : ?>
+                        <tr>
+                            <td><?php echo esc_html($a['name']); ?></td>
+                            <td><?php echo esc_html($slug); ?></td>
+                            <td><?php echo esc_html($a['assistant_id']); ?></td>
+                            <td>
+                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;">
+                                    <?php wp_nonce_field('oa_delete_assistant'); ?>
+                                    <input type="hidden" name="action" value="oa_delete_assistant" />
+                                    <input type="hidden" name="slug" value="<?php echo esc_attr($slug); ?>" />
+                                    <?php submit_button(__('Eliminar', 'oa-assistant'), 'delete', 'submit', false); ?>
+                                </form>
+                            </td>
+                        </tr>
+                        <?php endforeach; endif; ?>
                     </tbody>
                 </table>
-                </div>
-                <script type="text/html" id="oa-row-template">
-                    <tr data-index="__i__">
-                        <td class="oa-old-field"><input type="text" name="oa_assistant_configs[__i__][nombre]" class="regular-text" /></td>
-                        <td class="oa-old-field"><input type="text" name="oa_assistant_configs[__i__][slug]" class="regular-text" /></td>
-                        <td class="oa-old-field"><input type="text" name="oa_assistant_configs[__i__][assistant_id]" class="regular-text" /></td>
-                        <td class="oa-old-field"><textarea name="oa_assistant_configs[__i__][developer_instructions]" rows="2" class="regular-text"></textarea></td>
-                        <td class="oa-old-field"><input type="text" name="oa_assistant_configs[__i__][vector_store_id]" class="regular-text" /></td>
-                        <td><input type="text" name="oa_assistant_configs[__i__][model]" class="regular-text" /></td>
-                        <td><textarea name="oa_assistant_configs[__i__][description]" rows="2" class="regular-text"></textarea></td>
-                        <td class="oa-old-field"><span class="creation-date"></span><input type="hidden" name="oa_assistant_configs[__i__][created_at]" class="created-at-field" value="" /></td>
-                        <td class="oa-old-field"><input type="checkbox" name="oa_assistant_configs[__i__][debug]" /></td>
-                        <td><button type="button" class="button-link-delete oa-remove-assistant"><?php esc_html_e('Eliminar asistente', 'oa-assistant'); ?></button></td>
-                    </tr>
-                </script>
-                <p>
-                    <button type="button" class="button oa-add-assistant"><?php esc_html_e('Añadir asistente', 'oa-assistant'); ?></button>
-                </p>
-                <?php submit_button(); ?>
-            </form>
+            </div>
 
-            <?php
-            $existing = $this->list_assistants();
-            if (!is_wp_error($existing) && !empty($existing)) {
-                echo '<h2>' . esc_html__('Existing Assistants', 'oa-assistant') . '</h2>';
-                echo '<ul class="oa-existing-assistants">';
-                foreach ($existing as $asst) {
-                    $name = $asst['name'] ?? $asst['id'];
-                    echo '<li>' . esc_html($name) . ' (' . esc_html($asst['id']) . ')</li>';
-                }
-                echo '</ul>';
-            } elseif (is_wp_error($existing)) {
-                echo '<p style="color:red;">' . esc_html($existing->get_error_message()) . '</p>';
-            }
-            ?>
+            <h3><?php esc_html_e('Añadir nuevo asistente', 'oa-assistant'); ?></h3>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field('oa_add_assistant'); ?>
+                <input type="hidden" name="action" value="oa_add_assistant" />
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><label for="oa_name"><?php esc_html_e('Nombre', 'oa-assistant'); ?></label></th>
+                        <td><input name="name" id="oa_name" type="text" class="regular-text" required></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="oa_slug"><?php esc_html_e('Slug', 'oa-assistant'); ?></label></th>
+                        <td><input name="slug" id="oa_slug" type="text" class="regular-text" required></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="oa_assistant_id"><?php esc_html_e('Assistant ID', 'oa-assistant'); ?></label></th>
+                        <td><input name="assistant_id" id="oa_assistant_id" type="text" class="regular-text" required></td>
+                    </tr>
+                </table>
+                <?php submit_button(__('Añadir asistente', 'oa-assistant')); ?>
+            </form>
         </div>
         <?php
     }
@@ -136,50 +114,16 @@ class OA_Assistant_Plugin {
             'sanitize_callback' => 'sanitize_text_field',
             'default' => '',
         ]);
-        register_setting('oa-assistant-general', 'openai_assistant_id', [
-            'type' => 'string',
-            'sanitize_callback' => 'sanitize_text_field',
-            'default' => '',
-        ]);
         add_settings_section('oa-assistant-api-section', 'Ajustes generales', function(){
-            echo '<p>Tu clave secreta de OpenAI.</p>';
+            echo '<p>' . esc_html__('Clave secreta de OpenAI para autenticar las llamadas a la API.', 'oa-assistant') . '</p>';
         }, 'oa-assistant-general');
         add_settings_field('openai_api_key', 'OpenAI API Key', function(){
             $val = esc_attr(get_option('openai_api_key', ''));
             echo '<input type="password" id="openai_api_key" name="openai_api_key" value="'.$val.'" class="regular-text" /> ';
             echo '<button type="button" class="button oa-recover-key">'.esc_html__('Recuperar', 'oa-assistant').'</button>';
         }, 'oa-assistant-general', 'oa-assistant-api-section');
-        add_settings_field('openai_assistant_id', 'Assistant ID', function(){
-            $val = esc_attr(get_option('openai_assistant_id', ''));
-            echo '<input type="text" id="openai_assistant_id" name="openai_assistant_id" value="'.$val.'" class="regular-text" />';
-        }, 'oa-assistant-general', 'oa-assistant-api-section');
-
-        register_setting('oa-assistant-configs', 'oa_assistant_configs', [
-            'type' => 'array',
-            'sanitize_callback' => [$this, 'sanitize_configs'],
-            'default' => [],
-        ]);
     }
 
-    public function sanitize_configs($configs) {
-        if (!is_array($configs)) return [];
-        $sanitized = [];
-        foreach ($configs as $cfg) {
-            if (empty($cfg['slug'])) continue;
-            $sanitized[] = [
-                'nombre' => sanitize_text_field($cfg['nombre'] ?? ''),
-                'slug' => sanitize_title($cfg['slug'] ?? ''),
-                'assistant_id' => sanitize_text_field($cfg['assistant_id'] ?? ''),
-                'developer_instructions' => sanitize_textarea_field($cfg['developer_instructions'] ?? ''),
-                'vector_store_id' => sanitize_text_field($cfg['vector_store_id'] ?? ''),
-                'model' => sanitize_text_field($cfg['model'] ?? ''),
-                'description' => sanitize_textarea_field($cfg['description'] ?? ''),
-                'created_at' => sanitize_text_field($cfg['created_at'] ?? current_time('mysql')),
-                'debug' => empty($cfg['debug']) ? 0 : 1,
-            ];
-        }
-        return $sanitized;
-    }
 
     public function enqueue_admin_assets($hook) {
         if ($hook !== 'toplevel_page_oa-assistant') return;
@@ -232,14 +176,11 @@ class OA_Assistant_Plugin {
         if (empty($atts['slug'])) {
             return '<p style="color:red;">Error: falta atributo slug.</p>';
         }
-        $configs = get_option('oa_assistant_configs', []);
-        $cfgs = array_filter($configs, function($c) use ($atts) {
-            return $c['slug'] === $atts['slug'];
-        });
-        if (!$cfgs) {
+        $configs = get_option('openai_assistants_list', []);
+        $c = $configs[$atts['slug']] ?? null;
+        if (!$c) {
             return '<p style="color:red;">Assistant “'.esc_html($atts['slug']).'” no encontrado.</p>';
         }
-        $c = array_pop($cfgs);
 
 
         $ajax_url = esc_attr(admin_url('admin-ajax.php'));
@@ -247,14 +188,10 @@ class OA_Assistant_Plugin {
 
         ob_start(); ?>
         <div class="oa-assistant-chat"
-             data-slug="<?php echo esc_attr($c['slug']); ?>"
+             data-slug="<?php echo esc_attr($atts['slug']); ?>"
              data-ajax="<?php echo $ajax_url; ?>"
-             data-nonce="<?php echo $nonce; ?>"
-             data-debug="<?php echo !empty($c['debug']) ? '1' : '0'; ?>">
+             data-nonce="<?php echo $nonce; ?>">
           <div class="oa-messages"></div>
-          <?php if (!empty($c['debug'])) : ?>
-          <pre class="oa-debug-log"></pre>
-          <?php endif; ?>
           <form class="oa-form">
             <input type="text" name="user_message" placeholder="Escribe tu mensaje…" required />
             <button type="submit">Enviar</button>
@@ -271,7 +208,9 @@ class OA_Assistant_Plugin {
             wp_send_json_error('Falta mensaje');
         }
 
-        $assistant_id = get_option('openai_assistant_id');
+        $slug = sanitize_title($_POST['slug'] ?? '');
+        $list = get_option('openai_assistants_list', []);
+        $assistant_id = $list[$slug]['assistant_id'] ?? '';
         $api_key      = get_option('openai_api_key');
         if (!$assistant_id || !$api_key) {
             wp_send_json_error('Configuración incompleta', 500);
@@ -394,6 +333,44 @@ class OA_Assistant_Plugin {
         } else {
             wp_send_json_error('No se pudo enviar el email', 500);
         }
+    }
+
+    public function handle_add_assistant() {
+        check_admin_referer('oa_add_assistant');
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        $name = sanitize_text_field($_POST['name'] ?? '');
+        $slug = sanitize_title($_POST['slug'] ?? '');
+        $assistant_id = sanitize_text_field($_POST['assistant_id'] ?? '');
+        if (!$name || !$slug || !$assistant_id) {
+            wp_redirect(menu_page_url('oa-assistant', false));
+            exit;
+        }
+        $list = get_option('openai_assistants_list', []);
+        if (isset($list[$slug])) {
+            wp_redirect(menu_page_url('oa-assistant', false));
+            exit;
+        }
+        $list[$slug] = ['name' => $name, 'assistant_id' => $assistant_id];
+        update_option('openai_assistants_list', $list);
+        wp_redirect(menu_page_url('oa-assistant', false));
+        exit;
+    }
+
+    public function handle_delete_assistant() {
+        check_admin_referer('oa_delete_assistant');
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        $slug = sanitize_title($_POST['slug'] ?? '');
+        $list = get_option('openai_assistants_list', []);
+        if (isset($list[$slug])) {
+            unset($list[$slug]);
+            update_option('openai_assistants_list', $list);
+        }
+        wp_redirect(menu_page_url('oa-assistant', false));
+        exit;
     }
 
     private function list_assistants() {
