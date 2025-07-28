@@ -21,7 +21,8 @@ with ChatGPT when troubleshooting.
 
 ## AMP/mobile support
 
-The plugin no longer embeds the chat in an `amp-iframe`. If you need to use the
-shortcode on a page that is served as AMP, disable the AMP version of that page
-so the normal responsive layout loads. This ensures the chat works correctly on
-mobile devices.
+The plugin no longer embeds the chat in an `amp-iframe`. When the shortcode is
+rendered on an AMP page, the assistant output is skipped and a notice is
+displayed instead. If you need to use the shortcode, disable the AMP version of
+that page so the normal responsive layout loads. This ensures the chat works
+correctly on mobile devices.

@@ -208,6 +208,10 @@ class OA_Assistant_Plugin {
 
     public function render_assistant_shortcode($atts) {
         $atts = shortcode_atts(['slug' => ''], $atts, 'openai_assistant');
+        if (function_exists('amp_is_request') && amp_is_request()) {
+            $this->log_debug('AMP request detected; skipping assistant output');
+            return '<p style="color:red;">Assistant no disponible en AMP.</p>';
+        }
         if (empty($atts['slug'])) {
             return '<p style="color:red;">Error: falta atributo slug.</p>';
         }
