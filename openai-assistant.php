@@ -102,6 +102,21 @@ class OA_Assistant_Plugin {
                 </p>
                 <?php submit_button(); ?>
             </form>
+
+            <?php
+            $existing = $this->list_assistants();
+            if (!is_wp_error($existing) && !empty($existing)) {
+                echo '<h2>' . esc_html__('Existing Assistants', 'oa-assistant') . '</h2>';
+                echo '<ul class="oa-existing-assistants">';
+                foreach ($existing as $asst) {
+                    $name = $asst['name'] ?? $asst['id'];
+                    echo '<li>' . esc_html($name) . ' (' . esc_html($asst['id']) . ')</li>';
+                }
+                echo '</ul>';
+            } elseif (is_wp_error($existing)) {
+                echo '<p style="color:red;">' . esc_html($existing->get_error_message()) . '</p>';
+            }
+            ?>
         </div>
         <?php
     }
@@ -326,6 +341,24 @@ class OA_Assistant_Plugin {
         } else {
             wp_send_json_error('No se pudo enviar el email', 500);
         }
+    }
+
+    private function list_assistants() {
+        $key = get_option('oa_assistant_api_key', '');
+        if (!$key) {
+            return new WP_Error('no_key', 'No API key');
+        }
+        $response = wp_remote_get('https://api.openai.com/v1/assistants', [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $key,
+                'Content-Type'  => 'application/json',
+            ],
+        ]);
+        if (is_wp_error($response)) {
+            return $response;
+        }
+        $body = json_decode(wp_remote_retrieve_body($response), true);
+        return $body['data'] ?? [];
     }
 
     // Placeholder: implement your vector DB retrieval logic
