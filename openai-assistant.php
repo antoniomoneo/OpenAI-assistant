@@ -2,7 +2,7 @@
 /*
 Plugin Name: OpenAI Assistant
 Description: Embed OpenAI Assistants via shortcode.
-Version: 2.9.27
+Version: 3
 Author: Tangible Data
 Text Domain: oa-assistant
 */
@@ -163,8 +163,8 @@ class OA_Assistant_Plugin {
 
     public function enqueue_admin_assets($hook) {
         if ($hook !== 'toplevel_page_oa-assistant') return;
-        wp_enqueue_style('oa-admin-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.27');
-        wp_enqueue_script('oa-admin-js', plugin_dir_url(__FILE__).'js/assistant.js', ['jquery'], '2.9.27', true);
+        wp_enqueue_style('oa-admin-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '3');
+        wp_enqueue_script('oa-admin-js', plugin_dir_url(__FILE__).'js/assistant.js', ['jquery'], '3', true);
         wp_localize_script('oa-admin-js', 'oaAssistant', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce'    => wp_create_nonce('oa_assistant_send_key'),
@@ -172,8 +172,8 @@ class OA_Assistant_Plugin {
     }
 
     public function enqueue_frontend_assets() {
-        wp_enqueue_style('oa-frontend-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '2.9.27');
-        wp_enqueue_script('oa-frontend-js', plugin_dir_url(__FILE__).'js/assistant-frontend.js', ['jquery'], '2.9.27', true);
+        wp_enqueue_style('oa-frontend-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '3');
+        wp_enqueue_script('oa-frontend-js', plugin_dir_url(__FILE__).'js/assistant-frontend.js', ['jquery'], '3', true);
     }
 
     public function register_shortcodes() {
@@ -271,47 +271,108 @@ class OA_Assistant_Plugin {
             $debug_lines[] = 'Contexto: ' . implode(" | ", $context_chunks);
         }
 
-        $messages = [];
-        if (!empty($c['developer_instructions'])) {
-            $messages[] = ['role' => 'system', 'content' => $c['developer_instructions']];
-            if (!empty($c['debug'])) {
-                $debug_lines[] = 'Instrucciones: ' . $c['developer_instructions'];
-            }
-        }
-        if (!empty($context_chunks)) {
-            $messages[] = [
-                'role' => 'system',
-                'content' => "Contexto relevante:
-" . implode("
-
-", $context_chunks),
-            ];
-        }
-        $messages[] = ['role' => 'user', 'content' => $msg];
-
-        $payload = [
-            'model' => 'gpt-3.5-turbo',
-            'messages' => $messages,
-            'temperature' => 0.7,
+        $api_key = get_option('oa_assistant_api_key');
+        $headers = [
+            'Content-Type'  => 'application/json',
+            'Authorization' => 'Bearer ' . $api_key,
+            'OpenAI-Beta'   => 'assistants=v1',
         ];
-        if (!empty($c['debug'])) {
-            $debug_lines[] = 'Payload: ' . wp_json_encode($payload);
+
+        $cookie_name = 'oa_asst_thread_' . $slug;
+        $thread_id = sanitize_text_field($_COOKIE[$cookie_name] ?? '');
+        if (!$thread_id) {
+            $res = wp_remote_post('https://api.openai.com/v1/threads', [
+                'headers' => $headers,
+                'body'    => wp_json_encode([]),
+            ]);
+            if (is_wp_error($res)) {
+                wp_send_json_error($res->get_error_message(), 500);
+            }
+            $body = json_decode(wp_remote_retrieve_body($res), true);
+            if (isset($body['error'])) {
+                wp_send_json_error($body['error']['message'] ?? 'API error', 500);
+            }
+            $thread_id = $body['id'] ?? '';
+            if (!$thread_id) {
+                wp_send_json_error('No se pudo crear thread', 500);
+            }
+            setcookie($cookie_name, $thread_id, time() + DAY_IN_SECONDS, COOKIEPATH, COOKIE_DOMAIN, is_ssl(), true);
+            if (!empty($c['debug'])) {
+                $debug_lines[] = 'Thread creado: ' . $thread_id;
+            }
+        } elseif (!empty($c['debug'])) {
+            $debug_lines[] = 'Thread existente: ' . $thread_id;
         }
 
-        $response = wp_remote_post('https://api.openai.com/v1/chat/completions', [
-            'headers' => [
-                'Content-Type'  => 'application/json',
-                'Authorization' => 'Bearer ' . get_option('oa_assistant_api_key'),
-            ],
-            'body'    => wp_json_encode($payload),
+        $full_msg = $msg;
+        if (!empty($context_chunks)) {
+            $full_msg = "Contexto relevante:\n" . implode("\n", $context_chunks) . "\n\n" . $msg;
+        }
+
+        $send = wp_remote_post("https://api.openai.com/v1/threads/{$thread_id}/messages", [
+            'headers' => $headers,
+            'body'    => wp_json_encode([
+                'role'    => 'user',
+                'content' => $full_msg,
+            ]),
         ]);
-
-        if (is_wp_error($response)) {
-            wp_send_json_error($response->get_error_message(), 500);
+        if (is_wp_error($send)) {
+            wp_send_json_error($send->get_error_message(), 500);
+        }
+        $send_body = json_decode(wp_remote_retrieve_body($send), true);
+        if (isset($send_body['error'])) {
+            wp_send_json_error($send_body['error']['message'] ?? 'API error', 500);
         }
 
-        $body = json_decode(wp_remote_retrieve_body($response), true);
-        $reply = $body['choices'][0]['message']['content'] ?? '';
+        $run_payload = ['assistant_id' => $c['assistant_id']];
+        if (!empty($c['developer_instructions'])) {
+            $run_payload['instructions'] = $c['developer_instructions'];
+        }
+
+        $run = wp_remote_post("https://api.openai.com/v1/threads/{$thread_id}/runs", [
+            'headers' => $headers,
+            'body'    => wp_json_encode($run_payload),
+        ]);
+        if (is_wp_error($run)) {
+            wp_send_json_error($run->get_error_message(), 500);
+        }
+        $run_body = json_decode(wp_remote_retrieve_body($run), true);
+        if (isset($run_body['error'])) {
+            wp_send_json_error($run_body['error']['message'] ?? 'API error', 500);
+        }
+        $run_id = $run_body['id'] ?? '';
+        $status = $run_body['status'] ?? '';
+        $tries = 0;
+        while ($status && $status !== 'completed' && $tries < 30) {
+            sleep(1);
+            $tries++;
+            $chk = wp_remote_get("https://api.openai.com/v1/threads/{$thread_id}/runs/{$run_id}", ['headers' => $headers]);
+            if (is_wp_error($chk)) {
+                wp_send_json_error($chk->get_error_message(), 500);
+            }
+            $chk_body = json_decode(wp_remote_retrieve_body($chk), true);
+            if (isset($chk_body['error'])) {
+                wp_send_json_error($chk_body['error']['message'] ?? 'API error', 500);
+            }
+            $status = $chk_body['status'] ?? '';
+        }
+        if ($status !== 'completed') {
+            wp_send_json_error('Run no completado');
+        }
+
+        $msgs = wp_remote_get("https://api.openai.com/v1/threads/{$thread_id}/messages?order=desc&limit=1", ['headers' => $headers]);
+        if (is_wp_error($msgs)) {
+            wp_send_json_error($msgs->get_error_message(), 500);
+        }
+        $msgs_body = json_decode(wp_remote_retrieve_body($msgs), true);
+        if (isset($msgs_body['error'])) {
+            wp_send_json_error($msgs_body['error']['message'] ?? 'API error', 500);
+        }
+
+        $reply = '';
+        if (!empty($msgs_body['data'][0]['content'][0]['text']['value'])) {
+            $reply = $msgs_body['data'][0]['content'][0]['text']['value'];
+        }
         if (!empty($c['debug'])) {
             $debug_lines[] = 'Respuesta: ' . $reply;
         }
