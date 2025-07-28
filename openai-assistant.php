@@ -415,17 +415,17 @@ class OA_Assistant_Plugin {
         $slug = sanitize_title($_POST['slug'] ?? '');
         $assistant_id = sanitize_text_field($_POST['assistant_id'] ?? '');
         if (!$name || !$slug || !$assistant_id) {
-            wp_redirect(menu_page_url('oa-assistant', false));
+            wp_safe_redirect(admin_url('admin.php?page=oa-assistant'));
             exit;
         }
         $list = get_option('openai_assistants_list', []);
         if (isset($list[$slug])) {
-            wp_redirect(menu_page_url('oa-assistant', false));
+            wp_safe_redirect(admin_url('admin.php?page=oa-assistant'));
             exit;
         }
         $list[$slug] = ['name' => $name, 'assistant_id' => $assistant_id];
         update_option('openai_assistants_list', $list);
-        wp_redirect(menu_page_url('oa-assistant', false));
+        wp_safe_redirect(admin_url('admin.php?page=oa-assistant'));
         exit;
     }
 
@@ -440,7 +440,7 @@ class OA_Assistant_Plugin {
             unset($list[$slug]);
             update_option('openai_assistants_list', $list);
         }
-        wp_redirect(menu_page_url('oa-assistant', false));
+        wp_safe_redirect(admin_url('admin.php?page=oa-assistant'));
         exit;
     }
 
