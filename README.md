@@ -18,11 +18,10 @@ with ChatGPT when troubleshooting.
 - `css/assistant.css` – plugin styles.
 - `js/assistant.js` – admin scripts (add/remove assistants).
 - `js/assistant-frontend.js` – frontend scripts.
+- `js/assistant-amp.js` – AMP-compatible frontend script.
 
 ## AMP/mobile support
 
-The plugin no longer embeds the chat in an `amp-iframe`. When the shortcode is
-rendered on an AMP page, the assistant output is skipped and a notice is
-displayed instead. If you need to use the shortcode, disable the AMP version of
-that page so the normal responsive layout loads. This ensures the chat works
-correctly on mobile devices.
+When a page is served in AMP mode, the shortcode wraps the chat interface in an
+`amp-script` element that loads a lightweight JavaScript file. This allows the
+assistant to work directly on AMP pages without relying on iframes.
