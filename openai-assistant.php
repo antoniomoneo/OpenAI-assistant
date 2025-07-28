@@ -10,9 +10,22 @@ Text Domain: oa-assistant
 if (!defined('ABSPATH')) exit;
 
 class OA_Assistant_Plugin {
+    private $log_file;
+
     public function __construct() {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
+        }
+        $upload = wp_upload_dir();
+        $this->log_file = trailingslashit($upload['basedir']) . 'chatgpt_assistant_debug.log';
+
+        if (get_option('oa_assistant_enable_logs')) {
+            $dir = dirname($this->log_file);
+            if (!file_exists($dir)) {
+                wp_mkdir_p($dir);
+            }
+            set_error_handler([$this, 'handle_php_error']);
+            register_shutdown_function([$this, 'handle_shutdown']);
         }
         add_action('admin_menu', [$this, 'add_admin_menu']);
         add_action('admin_init', [$this, 'register_settings']);
@@ -107,6 +120,17 @@ class OA_Assistant_Plugin {
                 </table>
                 <?php submit_button(__('Añadir asistente', 'oa-assistant')); ?>
             </form>
+
+            <h2><?php esc_html_e('Logs de depuración', 'oa-assistant'); ?></h2>
+            <?php
+            $enabled = get_option('oa_assistant_enable_logs', false);
+            if ($enabled) {
+                $content = file_exists($this->log_file) ? file_get_contents($this->log_file) : '';
+                echo '<textarea readonly rows="10" style="width:100%;">'.esc_textarea($content).'</textarea>';
+            } else {
+                echo '<p>'.esc_html__('Los logs están desactivados.', 'oa-assistant').'</p>';
+            }
+            ?>
         </div>
         <?php
     }
@@ -117,6 +141,11 @@ class OA_Assistant_Plugin {
             'sanitize_callback' => 'sanitize_text_field',
             'default' => '',
         ]);
+        register_setting('oa-assistant-general', 'oa_assistant_enable_logs', [
+            'type' => 'boolean',
+            'sanitize_callback' => 'rest_sanitize_boolean',
+            'default' => false,
+        ]);
         add_settings_section('oa-assistant-api-section', 'Ajustes generales', function(){
             echo '<p>' . esc_html__('Clave secreta de OpenAI para autenticar las llamadas a la API.', 'oa-assistant') . '</p>';
         }, 'oa-assistant-general');
@@ -124,6 +153,10 @@ class OA_Assistant_Plugin {
             $val = esc_attr(get_option('openai_api_key', ''));
             echo '<input type="password" id="openai_api_key" name="openai_api_key" value="'.$val.'" class="regular-text" /> ';
             echo '<button type="button" class="button oa-recover-key">'.esc_html__('Recuperar', 'oa-assistant').'</button>';
+        }, 'oa-assistant-general', 'oa-assistant-api-section');
+        add_settings_field('oa_assistant_enable_logs', __('Guardar logs', 'oa-assistant'), function(){
+            $val = get_option('oa_assistant_enable_logs', false);
+            echo '<input type="checkbox" name="oa_assistant_enable_logs" value="1" '.checked(1, $val, false).' />';
         }, 'oa-assistant-general', 'oa-assistant-api-section');
     }
 
@@ -207,9 +240,10 @@ class OA_Assistant_Plugin {
 
     public function ajax_chat() {
         check_ajax_referer('oa_assistant_chat','nonce');
+        $start = microtime(true);
         $msg  = sanitize_text_field($_POST['message'] ?? '');
         if (!$msg) {
-            wp_send_json_error('Falta mensaje');
+            $this->json_error('Falta mensaje');
         }
 
         $slug = sanitize_title($_POST['slug'] ?? '');
@@ -217,7 +251,7 @@ class OA_Assistant_Plugin {
         $assistant_id = $list[$slug]['assistant_id'] ?? '';
         $api_key      = get_option('openai_api_key');
         if (!$assistant_id || !$api_key) {
-            wp_send_json_error('Configuración incompleta', 500);
+            $this->json_error('Configuración incompleta', 500);
         }
 
         $headers = [
@@ -232,15 +266,15 @@ class OA_Assistant_Plugin {
                 'body'    => wp_json_encode([]),
             ]);
             if (is_wp_error($thread)) {
-                wp_send_json_error($thread->get_error_message(), 500);
+                $this->json_error($thread->get_error_message(), 500);
             }
             $t_body = json_decode(wp_remote_retrieve_body($thread), true);
             if (isset($t_body['error'])) {
-                wp_send_json_error($t_body['error']['message'] ?? 'API error', 500);
+                $this->json_error($t_body['error']['message'] ?? 'API error', 500);
             }
             $_SESSION['openai_thread_id'] = $t_body['id'] ?? '';
             if (!$_SESSION['openai_thread_id']) {
-                wp_send_json_error('No se pudo crear el thread', 500);
+                $this->json_error('No se pudo crear el thread', 500);
             }
         }
         $thread_id = $_SESSION['openai_thread_id'];
@@ -253,11 +287,11 @@ class OA_Assistant_Plugin {
             ]),
         ]);
         if (is_wp_error($send)) {
-            wp_send_json_error($send->get_error_message(), 500);
+            $this->json_error($send->get_error_message(), 500);
         }
         $send_body = json_decode(wp_remote_retrieve_body($send), true);
         if (isset($send_body['error'])) {
-            wp_send_json_error($send_body['error']['message'] ?? 'API error', 500);
+            $this->json_error($send_body['error']['message'] ?? 'API error', 500);
         }
 
         $run = wp_remote_post("https://api.openai.com/v1/threads/{$thread_id}/runs", [
@@ -265,11 +299,11 @@ class OA_Assistant_Plugin {
             'body'    => wp_json_encode(['assistant_id' => $assistant_id]),
         ]);
         if (is_wp_error($run)) {
-            wp_send_json_error($run->get_error_message(), 500);
+            $this->json_error($run->get_error_message(), 500);
         }
         $run_body = json_decode(wp_remote_retrieve_body($run), true);
         if (isset($run_body['error'])) {
-            wp_send_json_error($run_body['error']['message'] ?? 'API error', 500);
+            $this->json_error($run_body['error']['message'] ?? 'API error', 500);
         }
 
         $run_id = $run_body['id'] ?? '';
@@ -282,27 +316,30 @@ class OA_Assistant_Plugin {
                 'headers' => $headers,
             ]);
             if (is_wp_error($chk)) {
-                wp_send_json_error($chk->get_error_message(), 500);
+                $this->json_error($chk->get_error_message(), 500);
             }
             $chk_body = json_decode(wp_remote_retrieve_body($chk), true);
             if (isset($chk_body['error'])) {
-                wp_send_json_error($chk_body['error']['message'] ?? 'API error', 500);
+                $this->json_error($chk_body['error']['message'] ?? 'API error', 500);
             }
             $status = $chk_body['status'] ?? '';
         }
+        $duration = microtime(true) - $start;
         if ($status !== 'completed') {
-            wp_send_json_error('Run no completado');
+            $this->log_debug('Run duration: '.round($duration,2).'s tries: '.$tries.' (max reached)');
+            $this->json_error('Run no completado');
         }
+        $this->log_debug('Run duration: '.round($duration,2).'s tries: '.$tries);
 
         $msgs = wp_remote_get("https://api.openai.com/v1/threads/{$thread_id}/messages", [
             'headers' => $headers,
         ]);
         if (is_wp_error($msgs)) {
-            wp_send_json_error($msgs->get_error_message(), 500);
+            $this->json_error($msgs->get_error_message(), 500);
         }
         $msgs_body = json_decode(wp_remote_retrieve_body($msgs), true);
         if (isset($msgs_body['error'])) {
-            wp_send_json_error($msgs_body['error']['message'] ?? 'API error', 500);
+            $this->json_error($msgs_body['error']['message'] ?? 'API error', 500);
         }
 
         $reply = '';
@@ -316,26 +353,26 @@ class OA_Assistant_Plugin {
         }
 
         if (!$reply) {
-            wp_send_json_error('Sin respuesta del assistant');
+            $this->json_error('Sin respuesta del assistant');
         }
 
-        wp_send_json_success(['reply' => $reply]);
+        $this->json_success(['reply' => $reply]);
     }
 
     public function ajax_send_key() {
         check_ajax_referer('oa_assistant_send_key', 'nonce');
         if (!current_user_can('manage_options')) {
-            wp_send_json_error('Unauthorized', 403);
+            $this->json_error('Unauthorized', 403);
         }
         $key = get_option('openai_api_key', '');
         if (!$key) {
-            wp_send_json_error('No API key');
+            $this->json_error('No API key');
         }
         $sent = wp_mail(get_option('admin_email'), 'OpenAI Assistant API Key', 'Tu API Key: ' . $key);
         if ($sent) {
-            wp_send_json_success('Email enviado');
+            $this->json_success('Email enviado');
         } else {
-            wp_send_json_error('No se pudo enviar el email', 500);
+            $this->json_error('No se pudo enviar el email', 500);
         }
     }
 
@@ -393,6 +430,58 @@ class OA_Assistant_Plugin {
         }
         $body = json_decode(wp_remote_retrieve_body($response), true);
         return $body['data'] ?? [];
+    }
+
+    private function log_debug($msg) {
+        if (!get_option('oa_assistant_enable_logs')) {
+            return;
+        }
+        $line = '[' . date('Y-m-d H:i:s') . '] ' . $msg . PHP_EOL;
+        file_put_contents($this->log_file, $line, FILE_APPEND);
+    }
+
+    public function handle_php_error($errno, $errstr, $errfile, $errline) {
+        $msg = "PHP error [$errno] $errstr in $errfile:$errline";
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            $msg .= "\n" . wp_debug_backtrace_summary(null, 0, false);
+        }
+        $this->log_debug($msg);
+        return false;
+    }
+
+    private function log_ajax_result($code, $data = null) {
+        $msg = 'HTTP ' . $code;
+        if ($code != 200 && $data !== null) {
+            if (!is_string($data)) {
+                $data = wp_json_encode($data);
+            }
+            $msg .= ' Response: ' . $data;
+        }
+        $this->log_debug($msg);
+    }
+
+    private function json_error($data, $code = 200) {
+        $this->log_ajax_result($code, $data);
+        wp_send_json_error($data, $code);
+    }
+
+    private function json_success($data) {
+        $this->log_ajax_result(200);
+        wp_send_json_success($data);
+    }
+
+    public function handle_shutdown() {
+        $err = error_get_last();
+        if ($err && ($err['type'] & (E_ERROR | E_PARSE | E_CORE_ERROR | E_COMPILE_ERROR))) {
+            $msg = "PHP fatal [{$err['type']}] {$err['message']} in {$err['file']}:{$err['line']}";
+            $this->log_debug($msg);
+        }
+    }
+
+    public function __destruct() {
+        if (get_option('oa_assistant_enable_logs')) {
+            restore_error_handler();
+        }
     }
 
     // Placeholder: implement your vector DB retrieval logic
