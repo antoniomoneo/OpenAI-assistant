@@ -11,6 +11,9 @@ if (!defined('ABSPATH')) exit;
 
 class OA_Assistant_Plugin {
     public function __construct() {
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
         add_action('admin_menu', [$this, 'add_admin_menu']);
         add_action('admin_init', [$this, 'register_settings']);
         add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_assets']);
@@ -128,7 +131,12 @@ class OA_Assistant_Plugin {
     }
 
     public function register_settings() {
-        register_setting('oa-assistant-general', 'oa_assistant_api_key', [
+        register_setting('oa-assistant-general', 'openai_api_key', [
+            'type' => 'string',
+            'sanitize_callback' => 'sanitize_text_field',
+            'default' => '',
+        ]);
+        register_setting('oa-assistant-general', 'openai_assistant_id', [
             'type' => 'string',
             'sanitize_callback' => 'sanitize_text_field',
             'default' => '',
@@ -136,10 +144,14 @@ class OA_Assistant_Plugin {
         add_settings_section('oa-assistant-api-section', 'Ajustes generales', function(){
             echo '<p>Tu clave secreta de OpenAI.</p>';
         }, 'oa-assistant-general');
-        add_settings_field('oa_assistant_api_key', 'OpenAI API Key', function(){
-            $val = esc_attr(get_option('oa_assistant_api_key', ''));
-            echo '<input type="password" id="oa_assistant_api_key" name="oa_assistant_api_key" value="'.$val.'" class="regular-text" /> ';
+        add_settings_field('openai_api_key', 'OpenAI API Key', function(){
+            $val = esc_attr(get_option('openai_api_key', ''));
+            echo '<input type="password" id="openai_api_key" name="openai_api_key" value="'.$val.'" class="regular-text" /> ';
             echo '<button type="button" class="button oa-recover-key">'.esc_html__('Recuperar', 'oa-assistant').'</button>';
+        }, 'oa-assistant-general', 'oa-assistant-api-section');
+        add_settings_field('openai_assistant_id', 'Assistant ID', function(){
+            $val = esc_attr(get_option('openai_assistant_id', ''));
+            echo '<input type="text" id="openai_assistant_id" name="openai_assistant_id" value="'.$val.'" class="regular-text" />';
         }, 'oa-assistant-general', 'oa-assistant-api-section');
 
         register_setting('oa-assistant-configs', 'oa_assistant_configs', [
@@ -254,74 +266,47 @@ class OA_Assistant_Plugin {
 
     public function ajax_chat() {
         check_ajax_referer('oa_assistant_chat','nonce');
-        $slug = sanitize_text_field($_POST['slug'] ?? '');
         $msg  = sanitize_text_field($_POST['message'] ?? '');
-        if (!$slug || !$msg) {
-            wp_send_json_error('Faltan parámetros');
-        }
-        $configs = get_option('oa_assistant_configs', []);
-        $cfgs = array_filter($configs, function($c) use ($slug) {
-            return $c['slug'] === $slug;
-        });
-        if (!$cfgs) {
-            wp_send_json_error('Assistant no encontrado');
-        }
-        $c = array_pop($cfgs);
-        $debug_lines = [];
-        if (!empty($c['debug'])) {
-            $debug_lines[] = 'Slug: ' . $slug;
-            $debug_lines[] = 'Mensaje usuario: ' . $msg;
+        if (!$msg) {
+            wp_send_json_error('Falta mensaje');
         }
 
-        // Retrieve context from vector store (implement your function)
-        $context_chunks = $this->get_vector_context($c['vector_store_id'], $msg);
-        if (!empty($c['debug'])) {
-            $debug_lines[] = 'Contexto: ' . implode(" | ", $context_chunks);
+        $assistant_id = get_option('openai_assistant_id');
+        $api_key      = get_option('openai_api_key');
+        if (!$assistant_id || !$api_key) {
+            wp_send_json_error('Configuración incompleta', 500);
         }
 
-        $api_key = get_option('oa_assistant_api_key');
         $headers = [
-            'Content-Type'  => 'application/json',
             'Authorization' => 'Bearer ' . $api_key,
             'OpenAI-Beta'   => 'assistants=v1',
+            'Content-Type'  => 'application/json',
         ];
 
-        $cookie_name = 'oa_asst_thread_' . $slug;
-        $thread_id = sanitize_text_field($_COOKIE[$cookie_name] ?? '');
-        if (!$thread_id) {
-            $res = wp_remote_post('https://api.openai.com/v1/threads', [
+        if (empty($_SESSION['openai_thread_id'])) {
+            $thread = wp_remote_post('https://api.openai.com/v1/threads', [
                 'headers' => $headers,
                 'body'    => wp_json_encode([]),
             ]);
-            if (is_wp_error($res)) {
-                wp_send_json_error($res->get_error_message(), 500);
+            if (is_wp_error($thread)) {
+                wp_send_json_error($thread->get_error_message(), 500);
             }
-            $body = json_decode(wp_remote_retrieve_body($res), true);
-            if (isset($body['error'])) {
-                wp_send_json_error($body['error']['message'] ?? 'API error', 500);
+            $t_body = json_decode(wp_remote_retrieve_body($thread), true);
+            if (isset($t_body['error'])) {
+                wp_send_json_error($t_body['error']['message'] ?? 'API error', 500);
             }
-            $thread_id = $body['id'] ?? '';
-            if (!$thread_id) {
-                wp_send_json_error('No se pudo crear thread', 500);
+            $_SESSION['openai_thread_id'] = $t_body['id'] ?? '';
+            if (!$_SESSION['openai_thread_id']) {
+                wp_send_json_error('No se pudo crear el thread', 500);
             }
-            setcookie($cookie_name, $thread_id, time() + DAY_IN_SECONDS, COOKIEPATH, COOKIE_DOMAIN, is_ssl(), true);
-            if (!empty($c['debug'])) {
-                $debug_lines[] = 'Thread creado: ' . $thread_id;
-            }
-        } elseif (!empty($c['debug'])) {
-            $debug_lines[] = 'Thread existente: ' . $thread_id;
         }
-
-        $full_msg = $msg;
-        if (!empty($context_chunks)) {
-            $full_msg = "Contexto relevante:\n" . implode("\n", $context_chunks) . "\n\n" . $msg;
-        }
+        $thread_id = $_SESSION['openai_thread_id'];
 
         $send = wp_remote_post("https://api.openai.com/v1/threads/{$thread_id}/messages", [
             'headers' => $headers,
             'body'    => wp_json_encode([
                 'role'    => 'user',
-                'content' => $full_msg,
+                'content' => $msg,
             ]),
         ]);
         if (is_wp_error($send)) {
@@ -332,14 +317,9 @@ class OA_Assistant_Plugin {
             wp_send_json_error($send_body['error']['message'] ?? 'API error', 500);
         }
 
-        $run_payload = ['assistant_id' => $c['assistant_id']];
-        if (!empty($c['developer_instructions'])) {
-            $run_payload['instructions'] = $c['developer_instructions'];
-        }
-
         $run = wp_remote_post("https://api.openai.com/v1/threads/{$thread_id}/runs", [
             'headers' => $headers,
-            'body'    => wp_json_encode($run_payload),
+            'body'    => wp_json_encode(['assistant_id' => $assistant_id]),
         ]);
         if (is_wp_error($run)) {
             wp_send_json_error($run->get_error_message(), 500);
@@ -348,13 +328,16 @@ class OA_Assistant_Plugin {
         if (isset($run_body['error'])) {
             wp_send_json_error($run_body['error']['message'] ?? 'API error', 500);
         }
+
         $run_id = $run_body['id'] ?? '';
         $status = $run_body['status'] ?? '';
-        $tries = 0;
-        while ($status && $status !== 'completed' && $tries < 30) {
+        $tries  = 0;
+        while ($status !== 'completed' && $tries < 30) {
             sleep(1);
             $tries++;
-            $chk = wp_remote_get("https://api.openai.com/v1/threads/{$thread_id}/runs/{$run_id}", ['headers' => $headers]);
+            $chk = wp_remote_get("https://api.openai.com/v1/threads/{$thread_id}/runs/{$run_id}", [
+                'headers' => $headers,
+            ]);
             if (is_wp_error($chk)) {
                 wp_send_json_error($chk->get_error_message(), 500);
             }
@@ -368,7 +351,9 @@ class OA_Assistant_Plugin {
             wp_send_json_error('Run no completado');
         }
 
-        $msgs = wp_remote_get("https://api.openai.com/v1/threads/{$thread_id}/messages?order=desc&limit=1", ['headers' => $headers]);
+        $msgs = wp_remote_get("https://api.openai.com/v1/threads/{$thread_id}/messages", [
+            'headers' => $headers,
+        ]);
         if (is_wp_error($msgs)) {
             wp_send_json_error($msgs->get_error_message(), 500);
         }
@@ -378,21 +363,20 @@ class OA_Assistant_Plugin {
         }
 
         $reply = '';
-        if (!empty($msgs_body['data'][0]['content'][0]['text']['value'])) {
-            $reply = $msgs_body['data'][0]['content'][0]['text']['value'];
-        }
-        if (!empty($c['debug'])) {
-            $debug_lines[] = 'Respuesta: ' . $reply;
-        }
-        if (!$reply) {
-            wp_send_json_error('No llegó respuesta del assistant');
+        if (!empty($msgs_body['data'])) {
+            foreach (array_reverse($msgs_body['data']) as $m) {
+                if (($m['role'] ?? '') === 'assistant') {
+                    $reply = $m['content'][0]['text']['value'] ?? '';
+                    break;
+                }
+            }
         }
 
-        $result = ['reply' => $reply];
-        if (!empty($c['debug'])) {
-            $result['debug'] = implode("\n", $debug_lines);
+        if (!$reply) {
+            wp_send_json_error('Sin respuesta del assistant');
         }
-        wp_send_json_success($result);
+
+        wp_send_json_success(['reply' => $reply]);
     }
 
     public function ajax_send_key() {
@@ -400,7 +384,7 @@ class OA_Assistant_Plugin {
         if (!current_user_can('manage_options')) {
             wp_send_json_error('Unauthorized', 403);
         }
-        $key = get_option('oa_assistant_api_key', '');
+        $key = get_option('openai_api_key', '');
         if (!$key) {
             wp_send_json_error('No API key');
         }
@@ -413,7 +397,7 @@ class OA_Assistant_Plugin {
     }
 
     private function list_assistants() {
-        $key = get_option('oa_assistant_api_key', '');
+        $key = get_option('openai_api_key', '');
         if (!$key) {
             return new WP_Error('no_key', 'No API key');
         }
