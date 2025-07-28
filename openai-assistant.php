@@ -2,7 +2,7 @@
 /*
 Plugin Name: OpenAI Assistant
 Description: Embed OpenAI Assistants via shortcode.
-Version: 3
+Version: 5
 Author: Tangible Data
 Text Domain: oa-assistant
 */
@@ -37,6 +37,7 @@ class OA_Assistant_Plugin {
         add_action('wp_ajax_oa_assistant_send_key', [$this, 'ajax_send_key']);
         add_filter('query_vars', [$this, 'register_query_vars']);
         add_action('template_redirect', [$this, 'maybe_render_embed']);
+        add_filter('amp_allowed_tags', [$this, 'allow_amp_script']);
     }
 
     public function add_admin_menu() {
@@ -209,8 +210,26 @@ class OA_Assistant_Plugin {
     public function render_assistant_shortcode($atts) {
         $atts = shortcode_atts(['slug' => ''], $atts, 'openai_assistant');
         if (function_exists('amp_is_request') && amp_is_request()) {
-            $this->log_debug('AMP request detected; skipping assistant output');
-            return '<p style="color:red;">Assistant no disponible en AMP.</p>';
+            if (empty($atts['slug'])) {
+                return '<p style="color:red;">Error: falta atributo slug.</p>';
+            }
+            $ajax_url = esc_attr(admin_url('admin-ajax.php'));
+            $nonce    = esc_attr(wp_create_nonce('oa_assistant_chat'));
+            ob_start(); ?>
+            <amp-script layout="container" src="<?php echo esc_url(plugins_url('js/assistant-amp.js', __FILE__)); ?>" data-ampdevmode>
+              <div class="oa-assistant-chat"
+                   data-slug="<?php echo esc_attr($atts['slug']); ?>"
+                   data-ajax="<?php echo $ajax_url; ?>"
+                   data-nonce="<?php echo $nonce; ?>">
+                <div class="oa-messages"></div>
+                <form class="oa-form">
+                  <input type="text" name="user_message" placeholder="Escribe tu mensaje…" required />
+                  <button type="submit">Enviar</button>
+                </form>
+              </div>
+            </amp-script>
+            <?php
+            return ob_get_clean();
         }
         if (empty($atts['slug'])) {
             return '<p style="color:red;">Error: falta atributo slug.</p>';
@@ -238,6 +257,15 @@ class OA_Assistant_Plugin {
         </div>
         <?php
         return ob_get_clean();
+    }
+
+    public function allow_amp_script($tags) {
+        $tags['amp-script'] = [
+            'layout' => true,
+            'src'    => true,
+            'data-ampdevmode' => true,
+        ];
+        return $tags;
     }
 
     public function ajax_chat() {
