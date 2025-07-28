@@ -68,7 +68,10 @@ class OA_Assistant_Plugin {
                             foreach ($list as $slug => $a) : ?>
                         <tr>
                             <td><?php echo esc_html($a['name']); ?></td>
-                            <td><?php echo esc_html($slug); ?></td>
+                            <td>
+                                <input type="text" class="oa-slug-field" readonly value="[openai_assistant slug=&quot;<?php echo esc_attr($slug); ?>&quot;]" />
+                                <button type="button" class="button oa-copy-slug" data-slug="[openai_assistant slug=&quot;<?php echo esc_attr($slug); ?>&quot;]"><span class="dashicons dashicons-clipboard"></span></button>
+                            </td>
                             <td><?php echo esc_html($a['assistant_id']); ?></td>
                             <td>
                                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;">
@@ -128,6 +131,7 @@ class OA_Assistant_Plugin {
     public function enqueue_admin_assets($hook) {
         if ($hook !== 'toplevel_page_oa-assistant') return;
         wp_enqueue_style('oa-admin-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '3');
+        wp_enqueue_style('dashicons');
         wp_enqueue_script('oa-admin-js', plugin_dir_url(__FILE__).'js/assistant.js', ['jquery'], '3', true);
         wp_localize_script('oa-admin-js', 'oaAssistant', [
             'ajax_url' => admin_url('admin-ajax.php'),
