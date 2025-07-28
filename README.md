@@ -3,7 +3,10 @@
 This plugin allows embedding OpenAI Assistants via a shortcode.
 
 The administration page lets you manage multiple assistants. You can add new
-rows for assistants or remove existing ones before saving the settings.
+rows for assistants or remove existing ones before saving the settings. Two
+additional fields—**Model** and **Description**—allow configuring data required
+by the OpenAI Assistants API. Legacy fields are still displayed but appear in
+light grey to indicate they are deprecated.
 
 Each assistant now has a **Debug** checkbox. When enabled, the chat UI shows a
 log of the actions performed during each request, which can be copied to share
