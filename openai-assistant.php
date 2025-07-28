@@ -286,7 +286,7 @@ class OA_Assistant_Plugin {
 
         $headers = [
             'Authorization' => 'Bearer ' . $api_key,
-            'OpenAI-Beta'   => 'assistants=v1',
+            'OpenAI-Beta'   => 'assistants=v2',
             'Content-Type'  => 'application/json',
         ];
 
@@ -452,6 +452,7 @@ class OA_Assistant_Plugin {
         $response = wp_remote_get('https://api.openai.com/v1/assistants', [
             'headers' => [
                 'Authorization' => 'Bearer ' . $key,
+                'OpenAI-Beta'   => 'assistants=v2',
                 'Content-Type'  => 'application/json',
             ],
         ]);
