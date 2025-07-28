@@ -47,37 +47,41 @@ class OA_Assistant_Plugin {
                 $configs = get_option('oa_assistant_configs', []);
                 ?>
                 <div class="oa-table-wrap">
-                <table class="widefat oa-assistants-table">
-                    <thead>
-                        <tr>
-                            <th><?php esc_html_e('Nombre', 'oa-assistant'); ?></th>
-                            <th><?php esc_html_e('Slug', 'oa-assistant'); ?></th>
-                            <th><?php esc_html_e('Assistant ID', 'oa-assistant'); ?></th>
-                            <th><?php esc_html_e('Instrucciones', 'oa-assistant'); ?></th>
-                            <th><?php esc_html_e('Vector Store ID', 'oa-assistant'); ?></th>
-                            <th><?php esc_html_e('Creado', 'oa-assistant'); ?></th>
-                            <th><?php esc_html_e('Debug', 'oa-assistant'); ?></th>
-                            <th><?php esc_html_e('Acciones', 'oa-assistant'); ?></th>
-                        </tr>
-                    </thead>
+                    <table class="widefat oa-assistants-table">
+                        <thead>
+                            <tr>
+                                <th class="oa-old-field"><?php esc_html_e('Nombre', 'oa-assistant'); ?></th>
+                                <th class="oa-old-field"><?php esc_html_e('Slug', 'oa-assistant'); ?></th>
+                                <th class="oa-old-field"><?php esc_html_e('Assistant ID', 'oa-assistant'); ?></th>
+                                <th class="oa-old-field"><?php esc_html_e('Instrucciones', 'oa-assistant'); ?></th>
+                                <th class="oa-old-field"><?php esc_html_e('Vector Store ID', 'oa-assistant'); ?></th>
+                                <th><?php esc_html_e('Modelo', 'oa-assistant'); ?></th>
+                                <th><?php esc_html_e('Descripción', 'oa-assistant'); ?></th>
+                                <th class="oa-old-field"><?php esc_html_e('Creado', 'oa-assistant'); ?></th>
+                                <th class="oa-old-field"><?php esc_html_e('Debug', 'oa-assistant'); ?></th>
+                                <th><?php esc_html_e('Acciones', 'oa-assistant'); ?></th>
+                            </tr>
+                        </thead>
                     <tbody>
                         <?php if (empty($configs)) : ?>
                             <tr>
-                                <td colspan="8"><?php esc_html_e('Sin asistentes', 'oa-assistant'); ?></td>
+                                <td colspan="10"><?php esc_html_e('Sin asistentes', 'oa-assistant'); ?></td>
                             </tr>
                         <?php else : ?>
                             <?php foreach ($configs as $i => $cfg) : ?>
                                 <tr data-index="<?php echo $i; ?>">
-                                    <td><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][nombre]" value="<?php echo esc_attr($cfg['nombre']); ?>" class="regular-text" /></td>
-                                    <td><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][slug]" value="<?php echo esc_attr($cfg['slug']); ?>" class="regular-text" /></td>
-                                    <td><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][assistant_id]" value="<?php echo esc_attr($cfg['assistant_id']); ?>" class="regular-text" /></td>
-                                    <td><textarea name="oa_assistant_configs[<?php echo $i; ?>][developer_instructions]" rows="2" class="regular-text"><?php echo esc_textarea($cfg['developer_instructions']); ?></textarea></td>
-                                    <td><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][vector_store_id]" value="<?php echo esc_attr($cfg['vector_store_id']); ?>" class="regular-text" /></td>
-                                    <td>
+                                    <td class="oa-old-field"><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][nombre]" value="<?php echo esc_attr($cfg['nombre']); ?>" class="regular-text" /></td>
+                                    <td class="oa-old-field"><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][slug]" value="<?php echo esc_attr($cfg['slug']); ?>" class="regular-text" /></td>
+                                    <td class="oa-old-field"><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][assistant_id]" value="<?php echo esc_attr($cfg['assistant_id']); ?>" class="regular-text" /></td>
+                                    <td class="oa-old-field"><textarea name="oa_assistant_configs[<?php echo $i; ?>][developer_instructions]" rows="2" class="regular-text"><?php echo esc_textarea($cfg['developer_instructions']); ?></textarea></td>
+                                    <td class="oa-old-field"><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][vector_store_id]" value="<?php echo esc_attr($cfg['vector_store_id']); ?>" class="regular-text" /></td>
+                                    <td><input type="text" name="oa_assistant_configs[<?php echo $i; ?>][model]" value="<?php echo esc_attr($cfg['model'] ?? ''); ?>" class="regular-text" /></td>
+                                    <td><textarea name="oa_assistant_configs[<?php echo $i; ?>][description]" rows="2" class="regular-text"><?php echo esc_textarea($cfg['description'] ?? ''); ?></textarea></td>
+                                    <td class="oa-old-field">
                                         <?php echo esc_html($cfg['created_at'] ?? ''); ?>
                                         <input type="hidden" name="oa_assistant_configs[<?php echo $i; ?>][created_at]" value="<?php echo esc_attr($cfg['created_at'] ?? ''); ?>" class="created-at-field" />
                                     </td>
-                                    <td><input type="checkbox" name="oa_assistant_configs[<?php echo $i; ?>][debug]" <?php checked(!empty($cfg['debug'])); ?> /></td>
+                                    <td class="oa-old-field"><input type="checkbox" name="oa_assistant_configs[<?php echo $i; ?>][debug]" <?php checked(!empty($cfg['debug'])); ?> /></td>
                                     <td><button type="button" class="button-link-delete oa-remove-assistant"><?php esc_html_e('Eliminar asistente', 'oa-assistant'); ?></button></td>
                                 </tr>
                             <?php endforeach; ?>
@@ -87,13 +91,15 @@ class OA_Assistant_Plugin {
                 </div>
                 <script type="text/html" id="oa-row-template">
                     <tr data-index="__i__">
-                        <td><input type="text" name="oa_assistant_configs[__i__][nombre]" class="regular-text" /></td>
-                        <td><input type="text" name="oa_assistant_configs[__i__][slug]" class="regular-text" /></td>
-                        <td><input type="text" name="oa_assistant_configs[__i__][assistant_id]" class="regular-text" /></td>
-                        <td><textarea name="oa_assistant_configs[__i__][developer_instructions]" rows="2" class="regular-text"></textarea></td>
-                        <td><input type="text" name="oa_assistant_configs[__i__][vector_store_id]" class="regular-text" /></td>
-                        <td><span class="creation-date"></span><input type="hidden" name="oa_assistant_configs[__i__][created_at]" class="created-at-field" value="" /></td>
-                        <td><input type="checkbox" name="oa_assistant_configs[__i__][debug]" /></td>
+                        <td class="oa-old-field"><input type="text" name="oa_assistant_configs[__i__][nombre]" class="regular-text" /></td>
+                        <td class="oa-old-field"><input type="text" name="oa_assistant_configs[__i__][slug]" class="regular-text" /></td>
+                        <td class="oa-old-field"><input type="text" name="oa_assistant_configs[__i__][assistant_id]" class="regular-text" /></td>
+                        <td class="oa-old-field"><textarea name="oa_assistant_configs[__i__][developer_instructions]" rows="2" class="regular-text"></textarea></td>
+                        <td class="oa-old-field"><input type="text" name="oa_assistant_configs[__i__][vector_store_id]" class="regular-text" /></td>
+                        <td><input type="text" name="oa_assistant_configs[__i__][model]" class="regular-text" /></td>
+                        <td><textarea name="oa_assistant_configs[__i__][description]" rows="2" class="regular-text"></textarea></td>
+                        <td class="oa-old-field"><span class="creation-date"></span><input type="hidden" name="oa_assistant_configs[__i__][created_at]" class="created-at-field" value="" /></td>
+                        <td class="oa-old-field"><input type="checkbox" name="oa_assistant_configs[__i__][debug]" /></td>
                         <td><button type="button" class="button-link-delete oa-remove-assistant"><?php esc_html_e('Eliminar asistente', 'oa-assistant'); ?></button></td>
                     </tr>
                 </script>
@@ -154,6 +160,8 @@ class OA_Assistant_Plugin {
                 'assistant_id' => sanitize_text_field($cfg['assistant_id'] ?? ''),
                 'developer_instructions' => sanitize_textarea_field($cfg['developer_instructions'] ?? ''),
                 'vector_store_id' => sanitize_text_field($cfg['vector_store_id'] ?? ''),
+                'model' => sanitize_text_field($cfg['model'] ?? ''),
+                'description' => sanitize_textarea_field($cfg['description'] ?? ''),
                 'created_at' => sanitize_text_field($cfg['created_at'] ?? current_time('mysql')),
                 'debug' => empty($cfg['debug']) ? 0 : 1,
             ];
