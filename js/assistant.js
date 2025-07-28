@@ -11,4 +11,24 @@ jQuery(function($){
       alert('Error al enviar');
     });
   });
+
+  function slugify(text){
+    return text.toString().toLowerCase().trim()
+      .replace(/[^\w\- ]+/g,'')
+      .replace(/\s+/g,'-');
+  }
+  var slugInput = $('#oa_slug');
+  $('#oa_name').on('input', function(){
+    if(!slugInput.val()){
+      slugInput.val(slugify($(this).val()));
+    }
+  });
+
+  $('.oa-copy-slug').on('click', function(){
+    var text = $(this).data('slug');
+    if(!text) return;
+    navigator.clipboard.writeText(text).then(function(){
+      alert('Copiado');
+    });
+  });
 });
