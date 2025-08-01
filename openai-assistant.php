@@ -2,7 +2,7 @@
 /*
 Plugin Name: OpenAI Assistant
 Description: Embed OpenAI Assistants via shortcode.
-Version: 6
+Version: 7
 Author: Tangible Data
 Text Domain: oa-assistant
 */
@@ -201,9 +201,9 @@ class OA_Assistant_Plugin {
 
     public function enqueue_admin_assets($hook) {
         if ($hook !== 'toplevel_page_oa-assistant') return;
-        wp_enqueue_style('oa-admin-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '3');
+        wp_enqueue_style('oa-admin-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '4');
         wp_enqueue_style('dashicons');
-        wp_enqueue_script('oa-admin-js', plugin_dir_url(__FILE__).'js/assistant.js', ['jquery'], '3', true);
+        wp_enqueue_script('oa-admin-js', plugin_dir_url(__FILE__).'js/assistant.js', ['jquery'], '4', true);
         wp_localize_script('oa-admin-js', 'oaAssistant', [
             'ajax_url' => admin_url('admin-ajax.php'),
             'nonce'    => wp_create_nonce('oa_assistant_send_key'),
@@ -211,8 +211,8 @@ class OA_Assistant_Plugin {
     }
 
     public function enqueue_frontend_assets() {
-        wp_enqueue_style('oa-frontend-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '3');
-        wp_enqueue_script('oa-frontend-js', plugin_dir_url(__FILE__).'js/assistant-frontend.js', ['jquery'], '3', true);
+        wp_enqueue_style('oa-frontend-css', plugin_dir_url(__FILE__).'css/assistant.css', [], '4');
+        wp_enqueue_script('oa-frontend-js', plugin_dir_url(__FILE__).'js/assistant-frontend.js', ['jquery'], '4', true);
     }
 
     public function register_shortcodes() {
@@ -366,6 +366,12 @@ class OA_Assistant_Plugin {
         $send_body = json_decode(wp_remote_retrieve_body($send), true);
         if (isset($send_body['error'])) {
             $this->json_error($send_body['error']['message'] ?? 'API error', 500);
+        }
+
+        $stream = !empty($_POST['stream']);
+        if ($stream) {
+            $this->stream_run($thread_id, $assistant_id, $headers);
+            return;
         }
 
         $run = wp_remote_post("https://api.openai.com/v1/threads/{$thread_id}/runs", [
@@ -556,6 +562,35 @@ class OA_Assistant_Plugin {
             $msg .= ' Response: ' . $data;
         }
         $this->log_debug($msg);
+    }
+
+    private function stream_run($thread_id, $assistant_id, $headers) {
+        ignore_user_abort(true);
+        header('Content-Type: text/event-stream');
+        header('Cache-Control: no-cache');
+        header('X-Accel-Buffering: no');
+        while (ob_get_level()) { ob_end_flush(); }
+        ob_implicit_flush(true);
+
+        $curl_headers = [];
+        foreach ($headers as $k => $v) {
+            $curl_headers[] = $k . ': ' . $v;
+        }
+        $ch = curl_init("https://api.openai.com/v1/threads/{$thread_id}/runs");
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, $curl_headers);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, wp_json_encode([
+            'assistant_id' => $assistant_id,
+            'stream'       => true,
+        ]));
+        curl_setopt($ch, CURLOPT_WRITEFUNCTION, function($ch, $data) {
+            echo $data;
+            flush();
+            return strlen($data);
+        });
+        curl_exec($ch);
+        curl_close($ch);
+        exit;
     }
 
     private function json_error($data, $code = 200) {
