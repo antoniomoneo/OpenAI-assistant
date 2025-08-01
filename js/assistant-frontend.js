@@ -10,6 +10,7 @@ jQuery(function($){
         input=w.find('input[name="user_message"]'),
         threadKey='oa_thread_'+slug,
         threadId=localStorage.getItem(threadKey);
+    if(threadId==='null' || threadId==='undefined'){ threadId=null; localStorage.removeItem(threadKey); }
     function scrollToBottom(){ msgs[0].scrollTop = msgs[0].scrollHeight; }
     function sendMessage(text){
       if(!text) return;
@@ -29,7 +30,8 @@ jQuery(function($){
         function read(){
           reader.read().then(function(r){
             if(r.done){
-              localStorage.setItem(threadKey, threadId);
+              if(threadId) localStorage.setItem(threadKey, threadId);
+              else localStorage.removeItem(threadKey);
               loader.remove();
               msgs.append('<div class="msg bot">'+full+'</div>');
               scrollToBottom();
@@ -48,7 +50,7 @@ jQuery(function($){
                   if(delta){ full+=delta; loader.text(full); }
                   if(obj.data&&obj.data.id){
                     threadId=obj.data.thread_id||threadId;
-                    localStorage.setItem(threadKey, threadId);
+                    if(threadId) localStorage.setItem(threadKey, threadId);
                   }
                 }catch(e){}
               }

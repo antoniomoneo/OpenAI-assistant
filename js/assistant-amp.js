@@ -6,6 +6,7 @@
   const nonce = container.getAttribute('data-nonce');
   const threadKey = 'oa_thread_' + slug;
   let threadId = localStorage.getItem(threadKey);
+  if(threadId === 'null' || threadId === 'undefined'){ threadId = null; localStorage.removeItem(threadKey); }
   const messages = container.querySelector('.oa-messages');
   const form = container.querySelector('.oa-form');
   const input = form.querySelector('input[name="user_message"]');
@@ -57,13 +58,14 @@
               if(delta){ full += delta; loader.textContent = full; }
               if(obj.data && obj.data.id){
                 threadId = obj.data.thread_id || threadId;
-                localStorage.setItem(threadKey, threadId);
+                if(threadId) localStorage.setItem(threadKey, threadId);
               }
             }catch(e){}
           }
         }
       }
-      localStorage.setItem(threadKey, threadId);
+      if(threadId) localStorage.setItem(threadKey, threadId);
+      else localStorage.removeItem(threadKey);
       loader.remove();
       appendMessage(full, 'bot');
     } catch(e){
