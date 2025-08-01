@@ -336,10 +336,15 @@ class OA_Assistant_Plugin {
 
         $posted_thread_id = sanitize_text_field($_POST['thread_id'] ?? '');
         if ($posted_thread_id) {
-            $_SESSION['openai_thread_id'][$slug] = $posted_thread_id;
+            if (preg_match('/^thread/', $posted_thread_id)) {
+                $_SESSION['openai_thread_id'][$slug] = $posted_thread_id;
+            } else {
+                // Ignore invalid thread IDs to avoid API errors
+                unset($_SESSION['openai_thread_id'][$slug]);
+            }
         }
 
-        if (empty($_SESSION['openai_thread_id'][$slug])) {
+        if (empty($_SESSION['openai_thread_id'][$slug]) || !preg_match('/^thread/', $_SESSION['openai_thread_id'][$slug])) {
             $thread = wp_remote_post('https://api.openai.com/v1/threads', [
                 'headers' => $headers,
                 'body'    => wp_json_encode([]),
