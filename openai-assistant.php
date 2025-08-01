@@ -329,6 +329,11 @@ class OA_Assistant_Plugin {
             'Content-Type'  => 'application/json',
         ];
 
+        $posted_thread_id = sanitize_text_field($_POST['thread_id'] ?? '');
+        if ($posted_thread_id) {
+            $_SESSION['openai_thread_id'] = $posted_thread_id;
+        }
+
         if (empty($_SESSION['openai_thread_id'])) {
             $thread = wp_remote_post('https://api.openai.com/v1/threads', [
                 'headers' => $headers,
@@ -425,7 +430,7 @@ class OA_Assistant_Plugin {
             $this->json_error('Sin respuesta del assistant');
         }
 
-        $this->json_success(['reply' => $reply]);
+        $this->json_success(['reply' => $reply, 'thread_id' => $thread_id]);
     }
 
     public function ajax_send_key() {

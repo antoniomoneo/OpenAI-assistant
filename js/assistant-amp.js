@@ -4,6 +4,8 @@
   const slug  = container.getAttribute('data-slug');
   const ajax  = container.getAttribute('data-ajax');
   const nonce = container.getAttribute('data-nonce');
+  const threadKey = 'oa_thread_' + slug;
+  let threadId = localStorage.getItem(threadKey);
   const messages = container.querySelector('.oa-messages');
   const form = container.querySelector('.oa-form');
   const input = form.querySelector('input[name="user_message"]');
@@ -33,10 +35,14 @@
       const resp = await fetch(ajax, {
         method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
-        body:new URLSearchParams({action:'oa_assistant_chat', nonce:nonce, slug:slug, message:text})
+        body:new URLSearchParams({action:'oa_assistant_chat', nonce:nonce, slug:slug, message:text, thread_id:threadId||''})
       });
       const data = await resp.json();
       if(data.success){
+        if(data.data.thread_id){
+          threadId = data.data.thread_id;
+          localStorage.setItem(threadKey, threadId);
+        }
         appendMessage(data.data.reply, 'bot');
       }else{
         appendMessage(data.data, 'error');
