@@ -7,7 +7,9 @@ jQuery(function($){
         debug=w.data('debug')==1,
         msgs=w.find('.oa-messages'),
         debugLog=w.find('.oa-debug-log'),
-        input=w.find('input[name="user_message"]');
+        input=w.find('input[name="user_message"]'),
+        threadKey='oa_thread_'+slug,
+        threadId=localStorage.getItem(threadKey);
     function scrollToBottom(){ msgs[0].scrollTop = msgs[0].scrollHeight; }
     function sendMessage(text){
       if(!text) return;
@@ -19,9 +21,14 @@ jQuery(function($){
         action:'oa_assistant_chat',
         nonce:nonce,
         slug:slug,
-        message:text
+        message:text,
+        thread_id:threadId||''
       }).done(function(res){
         loader.remove();
+        if(res.success && res.data.thread_id){
+          threadId=res.data.thread_id;
+          localStorage.setItem(threadKey,threadId);
+        }
         msgs.append('<div class="msg bot">'+(res.success?res.data.reply:res.data)+'</div>');
         if(debug && res.success && res.data.debug){
           debugLog.text(debugLog.text()+res.data.debug+'\n');
