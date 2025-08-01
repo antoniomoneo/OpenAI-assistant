@@ -12,6 +12,9 @@ Each assistant now has a **Debug** checkbox. When enabled, the chat UI shows a
 log of the actions performed during each request, which can be copied to share
 with ChatGPT when troubleshooting.
 
+As of version 7, the plugin streams assistant responses, removing the polling
+loop and displaying answers as soon as tokens arrive.
+
 ## File structure
 
 - `openai-assistant.php` – main plugin file.

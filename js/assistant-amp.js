@@ -35,22 +35,35 @@
       const resp = await fetch(ajax, {
         method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
-        body:new URLSearchParams({action:'oa_assistant_chat', nonce:nonce, slug:slug, message:text, thread_id:threadId||''})
+        body:new URLSearchParams({action:'oa_assistant_chat', nonce:nonce, slug:slug, message:text, thread_id:threadId||'', stream:1})
       });
-      const data = await resp.json();
-      if(data.success){
-        if(data.data.thread_id){
-          threadId = data.data.thread_id;
-          localStorage.setItem(threadKey, threadId);
+      if(!resp.body) throw new Error();
+      const reader = resp.body.getReader();
+      const dec = new TextDecoder();
+      let buf = '', full = '';
+      while(true){
+        const {done, value} = await reader.read();
+        if(done) break;
+        buf += dec.decode(value, {stream:true});
+        const lines = buf.split('\n');
+        buf = lines.pop();
+        for(const line of lines){
+          const l = line.trim();
+          if(!l || l === '[DONE]') continue;
+          if(l.indexOf('data: ') === 0){
+            try{
+              const obj = JSON.parse(l.slice(6));
+              const delta = obj.data && obj.data.delta && obj.data.delta.content ? obj.data.delta.content[0].text.value : (obj.delta && obj.delta.content ? obj.delta.content[0].text.value : '');
+              if(delta){ full += delta; loader.textContent = full; }
+            }catch(e){}
+          }
         }
-        appendMessage(data.data.reply, 'bot');
-      }else{
-        appendMessage(data.data, 'error');
       }
-    } catch(e){
-      appendMessage('Error al enviar', 'error');
-    } finally {
       loader.remove();
+      appendMessage(full, 'bot');
+    } catch(e){
+      loader.remove();
+      appendMessage('Error al enviar', 'error');
     }
   }
 

@@ -17,24 +17,43 @@ jQuery(function($){
       var loader=$('<div class="msg loading"></div>').appendTo(msgs);
       input.val('').focus();
       scrollToBottom();
-      $.post(ajaxUrl,{
-        action:'oa_assistant_chat',
-        nonce:nonce,
-        slug:slug,
-        message:text,
-        thread_id:threadId||''
-      }).done(function(res){
-        loader.remove();
-        if(res.success && res.data.thread_id){
-          threadId=res.data.thread_id;
-          localStorage.setItem(threadKey,threadId);
+      fetch(ajaxUrl,{
+        method:'POST',
+        headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:$.param({action:'oa_assistant_chat',nonce:nonce,slug:slug,message:text,thread_id:threadId||'',stream:1})
+      }).then(function(res){
+        if(!res.body){throw new Error('No stream');}
+        var reader=res.body.getReader();
+        var dec=new TextDecoder();
+        var buf='',full='';
+        function read(){
+          reader.read().then(function(r){
+            if(r.done){
+              loader.remove();
+              msgs.append('<div class="msg bot">'+full+'</div>');
+              scrollToBottom();
+              return;
+            }
+            buf+=dec.decode(r.value,{stream:true});
+            var lines=buf.split('\n');
+            buf=lines.pop();
+            lines.forEach(function(line){
+              line=line.trim();
+              if(!line||line==='[DONE]') return;
+              if(line.indexOf('data: ')===0){
+                try{
+                  var obj=JSON.parse(line.slice(6));
+                  var delta=obj.data&&obj.data.delta&&obj.data.delta.content?obj.data.delta.content[0].text.value:(obj.delta&&obj.delta.content?obj.delta.content[0].text.value:'');
+                  if(delta){ full+=delta; loader.text(full); }
+                  if(obj.data&&obj.data.id){ threadId=obj.data.thread_id||threadId; }
+                }catch(e){}
+              }
+            });
+            read();
+          });
         }
-        msgs.append('<div class="msg bot">'+(res.success?res.data.reply:res.data)+'</div>');
-        if(debug && res.success && res.data.debug){
-          debugLog.text(debugLog.text()+res.data.debug+'\n');
-        }
-        scrollToBottom();
-      }).fail(function(){
+        read();
+      }).catch(function(){
         loader.remove();
         msgs.append('<div class="msg error">Error al enviar</div>');
         scrollToBottom();
