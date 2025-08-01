@@ -11,6 +11,17 @@ jQuery(function($){
         threadKey='oa_thread_'+slug,
         threadId=localStorage.getItem(threadKey);
     if(threadId==='null' || threadId==='undefined'){ threadId=null; localStorage.removeItem(threadKey); }
+
+    function renderMarkdown(t){
+      var h=t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      h=h.replace(/^### (.*)$/gm,'<h3>$1</h3>');
+      h=h.replace(/^## (.*)$/gm,'<h2>$1</h2>');
+      h=h.replace(/^# (.*)$/gm,'<h1>$1</h1>');
+      h=h.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+      h=h.replace(/\*([^*]+)\*/g,'<em>$1</em>');
+      h=h.replace(/(?:\r\n|\r|\n)/g,'<br>');
+      return h;
+    }
     function scrollToBottom(){ msgs[0].scrollTop = msgs[0].scrollHeight; }
     function sendMessage(text){
       if(!text) return;
@@ -33,7 +44,7 @@ jQuery(function($){
               if(threadId) localStorage.setItem(threadKey, threadId);
               else localStorage.removeItem(threadKey);
               loader.remove();
-              msgs.append('<div class="msg bot">'+full+'</div>');
+              msgs.append('<div class="msg bot">'+renderMarkdown(full)+'</div>');
               scrollToBottom();
               return;
             }
@@ -47,7 +58,7 @@ jQuery(function($){
                 try{
                   var obj=JSON.parse(line.slice(6));
                   var delta=obj.data&&obj.data.delta&&obj.data.delta.content?obj.data.delta.content[0].text.value:(obj.delta&&obj.delta.content?obj.delta.content[0].text.value:'');
-                  if(delta){ full+=delta; loader.text(full); }
+                  if(delta){ full+=delta; loader.html(renderMarkdown(full)); }
                   if(obj.data&&obj.data.id){
                     threadId=obj.data.thread_id||threadId;
                     if(threadId) localStorage.setItem(threadKey, threadId);
