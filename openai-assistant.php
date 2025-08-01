@@ -329,12 +329,17 @@ class OA_Assistant_Plugin {
             'Content-Type'  => 'application/json',
         ];
 
-        $posted_thread_id = sanitize_text_field($_POST['thread_id'] ?? '');
-        if ($posted_thread_id) {
-            $_SESSION['openai_thread_id'] = $posted_thread_id;
+        // ensure thread storage is an array
+        if (!isset($_SESSION['openai_thread_id']) || !is_array($_SESSION['openai_thread_id'])) {
+            $_SESSION['openai_thread_id'] = [];
         }
 
-        if (empty($_SESSION['openai_thread_id'])) {
+        $posted_thread_id = sanitize_text_field($_POST['thread_id'] ?? '');
+        if ($posted_thread_id) {
+            $_SESSION['openai_thread_id'][$slug] = $posted_thread_id;
+        }
+
+        if (empty($_SESSION['openai_thread_id'][$slug])) {
             $thread = wp_remote_post('https://api.openai.com/v1/threads', [
                 'headers' => $headers,
                 'body'    => wp_json_encode([]),
@@ -346,12 +351,12 @@ class OA_Assistant_Plugin {
             if (isset($t_body['error'])) {
                 $this->json_error($t_body['error']['message'] ?? 'API error', 500);
             }
-            $_SESSION['openai_thread_id'] = $t_body['id'] ?? '';
-            if (!$_SESSION['openai_thread_id']) {
+            $_SESSION['openai_thread_id'][$slug] = $t_body['id'] ?? '';
+            if (!$_SESSION['openai_thread_id'][$slug]) {
                 $this->json_error('No se pudo crear el thread', 500);
             }
         }
-        $thread_id = $_SESSION['openai_thread_id'];
+        $thread_id = $_SESSION['openai_thread_id'][$slug];
 
         $send = wp_remote_post("https://api.openai.com/v1/threads/{$thread_id}/messages", [
             'headers' => $headers,

@@ -29,6 +29,7 @@ jQuery(function($){
         function read(){
           reader.read().then(function(r){
             if(r.done){
+              localStorage.setItem(threadKey, threadId);
               loader.remove();
               msgs.append('<div class="msg bot">'+full+'</div>');
               scrollToBottom();
@@ -45,7 +46,10 @@ jQuery(function($){
                   var obj=JSON.parse(line.slice(6));
                   var delta=obj.data&&obj.data.delta&&obj.data.delta.content?obj.data.delta.content[0].text.value:(obj.delta&&obj.delta.content?obj.delta.content[0].text.value:'');
                   if(delta){ full+=delta; loader.text(full); }
-                  if(obj.data&&obj.data.id){ threadId=obj.data.thread_id||threadId; }
+                  if(obj.data&&obj.data.id){
+                    threadId=obj.data.thread_id||threadId;
+                    localStorage.setItem(threadKey, threadId);
+                  }
                 }catch(e){}
               }
             });
