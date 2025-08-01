@@ -30,6 +30,7 @@ class OA_Assistant_Plugin {
         add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_assets']);
         add_action('admin_post_oa_add_assistant', [$this, 'handle_add_assistant']);
         add_action('admin_post_oa_delete_assistant', [$this, 'handle_delete_assistant']);
+        add_action('admin_post_oa_edit_assistant', [$this, 'handle_edit_assistant']);
         add_action('init', [$this, 'register_shortcodes']);
         add_action('wp_enqueue_scripts', [$this, 'enqueue_frontend_assets']);
         add_action('wp_ajax_oa_assistant_chat', [$this, 'ajax_chat']);
@@ -86,6 +87,9 @@ class OA_Assistant_Plugin {
                             </td>
                             <td><?php echo esc_html($a['assistant_id']); ?></td>
                             <td>
+                                <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=oa-assistant&edit=' . urlencode($slug))); ?>">
+                                    <?php esc_html_e('Editar', 'oa-assistant'); ?>
+                                </a>
                                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;">
                                     <?php wp_nonce_field('oa_delete_assistant'); ?>
                                     <input type="hidden" name="action" value="oa_delete_assistant" />
@@ -98,6 +102,30 @@ class OA_Assistant_Plugin {
                     </tbody>
                 </table>
             </div>
+
+            <?php
+            $edit = sanitize_title($_GET['edit'] ?? '');
+            if ($edit && isset($list[$edit])) :
+                $e = $list[$edit];
+            ?>
+            <h3><?php esc_html_e('Editar asistente', 'oa-assistant'); ?></h3>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
+                <?php wp_nonce_field('oa_edit_assistant'); ?>
+                <input type="hidden" name="action" value="oa_edit_assistant" />
+                <input type="hidden" name="slug" value="<?php echo esc_attr($edit); ?>" />
+                <table class="form-table">
+                    <tr>
+                        <th scope="row"><label for="oa_edit_name"><?php esc_html_e('Nombre', 'oa-assistant'); ?></label></th>
+                        <td><input name="name" id="oa_edit_name" type="text" class="regular-text" required value="<?php echo esc_attr($e['name']); ?>" /></td>
+                    </tr>
+                    <tr>
+                        <th scope="row"><label for="oa_edit_assistant_id"><?php esc_html_e('Assistant ID', 'oa-assistant'); ?></label></th>
+                        <td><input name="assistant_id" id="oa_edit_assistant_id" type="text" class="regular-text" required value="<?php echo esc_attr($e['assistant_id']); ?>" /></td>
+                    </tr>
+                </table>
+                <?php submit_button(__('Guardar cambios', 'oa-assistant')); ?>
+            </form>
+            <?php endif; ?>
 
             <h3><?php esc_html_e('Añadir nuevo asistente', 'oa-assistant'); ?></h3>
             <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
@@ -440,6 +468,29 @@ class OA_Assistant_Plugin {
             unset($list[$slug]);
             update_option('openai_assistants_list', $list);
         }
+        wp_safe_redirect(admin_url('admin.php?page=oa-assistant'));
+        exit;
+    }
+
+    public function handle_edit_assistant() {
+        check_admin_referer('oa_edit_assistant');
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        $slug = sanitize_title($_POST['slug'] ?? '');
+        $name = sanitize_text_field($_POST['name'] ?? '');
+        $assistant_id = sanitize_text_field($_POST['assistant_id'] ?? '');
+        if (!$slug || !$name || !$assistant_id) {
+            wp_safe_redirect(admin_url('admin.php?page=oa-assistant'));
+            exit;
+        }
+        $list = get_option('openai_assistants_list', []);
+        if (!isset($list[$slug])) {
+            wp_safe_redirect(admin_url('admin.php?page=oa-assistant'));
+            exit;
+        }
+        $list[$slug] = ['name' => $name, 'assistant_id' => $assistant_id];
+        update_option('openai_assistants_list', $list);
         wp_safe_redirect(admin_url('admin.php?page=oa-assistant'));
         exit;
     }
