@@ -25,3 +25,14 @@ with ChatGPT when troubleshooting.
 When a page is served in AMP mode, the shortcode wraps the chat interface in an
 `amp-script` element that loads a lightweight JavaScript file. This allows the
 assistant to work directly on AMP pages without relying on iframes.
+
+## API Key storage
+
+For improved security, you can define a constant in `wp-config.php`:
+
+```php
+define('OPENAI_API_KEY', 'your-secret-key');
+```
+
+When this constant exists, the plugin will use it instead of the value stored in
+the WordPress options table.
