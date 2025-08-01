@@ -3,6 +3,9 @@
 .oa-debug-log{height:100px;overflow-y:auto;margin-bottom:10px;border:1px dashed #ccc;padding:5px;font-size:12px;white-space:pre-wrap;}
 .msg.user{text-align:right;}
 .msg.bot{text-align:left;}
+.msg.loading{text-align:center;}
+.msg.loading:after{content:"";display:inline-block;width:12px;height:12px;border:2px solid #999;border-right-color:transparent;border-radius:50%;animation:oa-spin 0.8s linear infinite;}
+@keyframes oa-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
 .oa-form input{width:70%;}
 .oa-remove-assistant{color:#a00;}
 .oa-table-wrap{overflow-x:auto;}

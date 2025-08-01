@@ -16,9 +16,18 @@
     messages.scrollTop = messages.scrollHeight;
   }
 
+  function appendLoading(){
+    const div = document.createElement('div');
+    div.className = 'msg loading';
+    messages.appendChild(div);
+    messages.scrollTop = messages.scrollHeight;
+    return div;
+  }
+
   async function sendMessage(text){
     if(!text) return;
     appendMessage(text, 'user');
+    const loader = appendLoading();
     input.value = '';
     try {
       const resp = await fetch(ajax, {
@@ -34,6 +43,8 @@
       }
     } catch(e){
       appendMessage('Error al enviar', 'error');
+    } finally {
+      loader.remove();
     }
   }
 
