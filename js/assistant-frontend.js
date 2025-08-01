@@ -8,24 +8,30 @@ jQuery(function($){
         msgs=w.find('.oa-messages'),
         debugLog=w.find('.oa-debug-log'),
         input=w.find('input[name="user_message"]');
+    function scrollToBottom(){ msgs[0].scrollTop = msgs[0].scrollHeight; }
     function sendMessage(text){
       if(!text) return;
       msgs.append('<div class="msg user">'+text+'</div>');
+      var loader=$('<div class="msg loading"></div>').appendTo(msgs);
       input.val('').focus();
+      scrollToBottom();
       $.post(ajaxUrl,{
         action:'oa_assistant_chat',
         nonce:nonce,
         slug:slug,
         message:text
       }).done(function(res){
+        loader.remove();
         msgs.append('<div class="msg bot">'+(res.success?res.data.reply:res.data)+'</div>');
         if(debug && res.success && res.data.debug){
           debugLog.text(debugLog.text()+res.data.debug+'\n');
         }
+        scrollToBottom();
       }).fail(function(){
+        loader.remove();
         msgs.append('<div class="msg error">Error al enviar</div>');
+        scrollToBottom();
       });
-      msgs[0].scrollTop = msgs[0].scrollHeight;
     }
     w.find('.oa-form').on('submit', function(e){e.preventDefault(); sendMessage(input.val().trim());});
     input.on('keypress', function(e){ if(e.which===13){e.preventDefault(); sendMessage(input.val().trim());}});
