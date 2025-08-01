@@ -55,10 +55,15 @@
               const obj = JSON.parse(l.slice(6));
               const delta = obj.data && obj.data.delta && obj.data.delta.content ? obj.data.delta.content[0].text.value : (obj.delta && obj.delta.content ? obj.delta.content[0].text.value : '');
               if(delta){ full += delta; loader.textContent = full; }
+              if(obj.data && obj.data.id){
+                threadId = obj.data.thread_id || threadId;
+                localStorage.setItem(threadKey, threadId);
+              }
             }catch(e){}
           }
         }
       }
+      localStorage.setItem(threadKey, threadId);
       loader.remove();
       appendMessage(full, 'bot');
     } catch(e){
