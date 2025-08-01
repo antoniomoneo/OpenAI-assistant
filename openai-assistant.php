@@ -2,7 +2,7 @@
 /*
 Plugin Name: OpenAI Assistant
 Description: Embed OpenAI Assistants via shortcode.
-Version: 5
+Version: 6
 Author: Tangible Data
 Text Domain: oa-assistant
 */
@@ -52,6 +52,9 @@ class OA_Assistant_Plugin {
 
             <h2><?php esc_html_e('API Key', 'oa-assistant'); ?></h2>
             <p><?php esc_html_e('Clave secreta de OpenAI para autenticar las llamadas a la API.', 'oa-assistant'); ?></p>
+            <?php if (defined('OPENAI_API_KEY')) : ?>
+            <p><em><?php esc_html_e('La clave está definida en wp-config.php y no puede modificarse desde esta página.', 'oa-assistant'); ?></em></p>
+            <?php endif; ?>
             <form method="post" action="options.php">
                 <?php
                 settings_fields('oa-assistant-general');
@@ -163,11 +166,13 @@ class OA_Assistant_Plugin {
     }
 
     public function register_settings() {
-        register_setting('oa-assistant-general', 'openai_api_key', [
-            'type' => 'string',
-            'sanitize_callback' => 'sanitize_text_field',
-            'default' => '',
-        ]);
+        if (!defined('OPENAI_API_KEY')) {
+            register_setting('oa-assistant-general', 'openai_api_key', [
+                'type' => 'string',
+                'sanitize_callback' => 'sanitize_text_field',
+                'default' => '',
+            ]);
+        }
         register_setting('oa-assistant-general', 'oa_assistant_enable_logs', [
             'type' => 'boolean',
             'sanitize_callback' => 'rest_sanitize_boolean',
@@ -176,11 +181,17 @@ class OA_Assistant_Plugin {
         add_settings_section('oa-assistant-api-section', 'Ajustes generales', function(){
             echo '<p>' . esc_html__('Clave secreta de OpenAI para autenticar las llamadas a la API.', 'oa-assistant') . '</p>';
         }, 'oa-assistant-general');
-        add_settings_field('openai_api_key', 'OpenAI API Key', function(){
-            $val = esc_attr(get_option('openai_api_key', ''));
-            echo '<input type="password" id="openai_api_key" name="openai_api_key" value="'.$val.'" class="regular-text" /> ';
-            echo '<button type="button" class="button oa-recover-key">'.esc_html__('Recuperar', 'oa-assistant').'</button>';
-        }, 'oa-assistant-general', 'oa-assistant-api-section');
+        if (!defined('OPENAI_API_KEY')) {
+            add_settings_field('openai_api_key', 'OpenAI API Key', function(){
+                $val = esc_attr(get_option('openai_api_key', ''));
+                echo '<input type="password" id="openai_api_key" name="openai_api_key" value="'.$val.'" class="regular-text" /> ';
+                echo '<button type="button" class="button oa-recover-key">'.esc_html__('Recuperar', 'oa-assistant').'</button>';
+            }, 'oa-assistant-general', 'oa-assistant-api-section');
+        } else {
+            add_settings_field('openai_api_key_defined', 'OpenAI API Key', function(){
+                echo '<p>'.esc_html__('Definida en wp-config.php', 'oa-assistant').'</p>';
+            }, 'oa-assistant-general', 'oa-assistant-api-section');
+        }
         add_settings_field('oa_assistant_enable_logs', __('Guardar logs', 'oa-assistant'), function(){
             $val = get_option('oa_assistant_enable_logs', false);
             echo '<input type="checkbox" name="oa_assistant_enable_logs" value="1" '.checked(1, $val, false).' />';
@@ -307,7 +318,7 @@ class OA_Assistant_Plugin {
         $slug = sanitize_title($_POST['slug'] ?? '');
         $list = get_option('openai_assistants_list', []);
         $assistant_id = $list[$slug]['assistant_id'] ?? '';
-        $api_key      = get_option('openai_api_key');
+        $api_key      = $this->get_api_key();
         if (!$assistant_id || !$api_key) {
             $this->json_error('Configuración incompleta', 500);
         }
@@ -422,7 +433,7 @@ class OA_Assistant_Plugin {
         if (!current_user_can('manage_options')) {
             $this->json_error('Unauthorized', 403);
         }
-        $key = get_option('openai_api_key', '');
+        $key = $this->get_api_key();
         if (!$key) {
             $this->json_error('No API key');
         }
@@ -496,7 +507,7 @@ class OA_Assistant_Plugin {
     }
 
     private function list_assistants() {
-        $key = get_option('openai_api_key', '');
+        $key = $this->get_api_key();
         if (!$key) {
             return new WP_Error('no_key', 'No API key');
         }
@@ -550,6 +561,13 @@ class OA_Assistant_Plugin {
     private function json_success($data) {
         $this->log_ajax_result(200);
         wp_send_json_success($data);
+    }
+
+    private function get_api_key() {
+        if (defined('OPENAI_API_KEY') && OPENAI_API_KEY) {
+            return OPENAI_API_KEY;
+        }
+        return get_option('openai_api_key', '');
     }
 
     // Placeholder: implement your vector DB retrieval logic
