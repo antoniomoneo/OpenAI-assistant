@@ -1,8 +1,10 @@
 .oa-assistant-chat{border:1px solid #ddd;padding:10px;max-width:400px;width:100%;box-sizing:border-box;}
 .oa-messages{height:200px;overflow-y:auto;margin-bottom:10px;}
 .oa-debug-log{height:100px;overflow-y:auto;margin-bottom:10px;border:1px dashed #ccc;padding:5px;font-size:12px;white-space:pre-wrap;}
-.msg.user{text-align:right;}
-.msg.bot{text-align:left;}
+.msg.user,
+.msg.bot{display:inline-block;padding:6px 10px;margin:4px 0;border-radius:12px;max-width:80%}
+.msg.user{text-align:right;background:#e6e7e8}
+.msg.bot{text-align:left;background:#f4f4f4}
 .msg.loading{text-align:center;}
 .msg.loading:after{content:"";display:inline-block;width:12px;height:12px;border:2px solid #999;border-right-color:transparent;border-radius:50%;animation:oa-spin 0.8s linear infinite;}
 @keyframes oa-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
