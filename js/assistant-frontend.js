@@ -25,8 +25,8 @@ jQuery(function($){
     function scrollToBottom(){ msgs[0].scrollTop = msgs[0].scrollHeight; }
     function sendMessage(text){
       if(!text) return;
-      msgs.append('<div class="msg user">'+text+'</div>');
-      var loader=$('<div class="msg loading"></div>').appendTo(msgs);
+      msgs.append('<div class="msg user"><div class="msg-label">Tu dijiste</div><div class="msg-bubble">'+text+'</div></div>');
+      var loader=$('<div class="msg bot loading"><div class="msg-label">Aura dijo</div><div class="msg-bubble"></div></div>').appendTo(msgs);
       input.val('').focus();
       scrollToBottom();
       fetch(ajaxUrl,{
@@ -43,8 +43,7 @@ jQuery(function($){
             if(r.done){
               if(threadId) localStorage.setItem(threadKey, threadId);
               else localStorage.removeItem(threadKey);
-              loader.remove();
-              msgs.append('<div class="msg bot">'+renderMarkdown(full)+'</div>');
+              loader.removeClass('loading');
               scrollToBottom();
               return;
             }
@@ -58,7 +57,7 @@ jQuery(function($){
                 try{
                   var obj=JSON.parse(line.slice(6));
                   var delta=obj.data&&obj.data.delta&&obj.data.delta.content?obj.data.delta.content[0].text.value:(obj.delta&&obj.delta.content?obj.delta.content[0].text.value:'');
-                  if(delta){ full+=delta; loader.html(renderMarkdown(full)); }
+                  if(delta){ full+=delta; loader.find('.msg-bubble').html(renderMarkdown(full)); }
                   if(obj.data&&obj.data.id){
                     threadId=obj.data.thread_id||threadId;
                     if(threadId) localStorage.setItem(threadKey, threadId);

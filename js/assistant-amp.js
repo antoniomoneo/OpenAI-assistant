@@ -25,15 +25,23 @@
   function appendMessage(text, cls){
     const div = document.createElement('div');
     div.className = 'msg ' + cls;
-    if(cls === 'bot') div.innerHTML = renderMarkdown(text);
-    else div.textContent = text;
+    if(cls === 'user'){
+      div.innerHTML = '<div class="msg-label">Tu dijiste</div><div class="msg-bubble"></div>';
+      div.querySelector('.msg-bubble').textContent = text;
+    }else if(cls === 'bot'){
+      div.innerHTML = '<div class="msg-label">Aura dijo</div><div class="msg-bubble">'+renderMarkdown(text)+'</div>';
+    }else{
+      div.textContent = text;
+    }
     messages.appendChild(div);
     messages.scrollTop = messages.scrollHeight;
+    return div;
   }
 
   function appendLoading(){
     const div = document.createElement('div');
-    div.className = 'msg loading';
+    div.className = 'msg bot loading';
+    div.innerHTML = '<div class="msg-label">Aura dijo</div><div class="msg-bubble"></div>';
     messages.appendChild(div);
     messages.scrollTop = messages.scrollHeight;
     return div;
@@ -67,7 +75,7 @@
             try{
               const obj = JSON.parse(l.slice(6));
               const delta = obj.data && obj.data.delta && obj.data.delta.content ? obj.data.delta.content[0].text.value : (obj.delta && obj.delta.content ? obj.delta.content[0].text.value : '');
-              if(delta){ full += delta; loader.innerHTML = renderMarkdown(full); }
+              if(delta){ full += delta; loader.querySelector('.msg-bubble').innerHTML = renderMarkdown(full); }
               if(obj.data && obj.data.id){
                 threadId = obj.data.thread_id || threadId;
                 if(threadId) localStorage.setItem(threadKey, threadId);
@@ -78,8 +86,7 @@
       }
       if(threadId) localStorage.setItem(threadKey, threadId);
       else localStorage.removeItem(threadKey);
-      loader.remove();
-      appendMessage(full, 'bot');
+      loader.classList.remove('loading');
     } catch(e){
       loader.remove();
       appendMessage('Error al enviar', 'error');
