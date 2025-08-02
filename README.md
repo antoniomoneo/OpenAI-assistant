@@ -22,6 +22,8 @@ loop and displaying answers as soon as tokens arrive.
 - `js/assistant.js` – admin scripts (add/remove assistants).
 - `js/assistant-frontend.js` – frontend scripts.
 - `js/assistant-amp.js` – AMP-compatible frontend script.
+- `openai-stream.php` – example plugin that streams chat responses using Server-Sent Events.
+- `openai-stream.js` – frontend script for the streaming example.
 
 ## AMP/mobile support
 
