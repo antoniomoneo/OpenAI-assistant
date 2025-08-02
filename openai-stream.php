@@ -17,6 +17,11 @@ function openai_stream_chat() {
     header('Content-Type: text/event-stream');
     header('Cache-Control: no-cache');
     header('Connection: keep-alive');
+    header('X-Accel-Buffering: no');
+    while (ob_get_level()) {
+        ob_end_flush();
+    }
+    ob_implicit_flush(true);
 
     $api_key = defined('OPENAI_API_KEY') ? OPENAI_API_KEY : '';
 
@@ -36,7 +41,7 @@ function openai_stream_chat() {
             'stream' => true
         ]),
         CURLOPT_WRITEFUNCTION => function ($curl, $data) {
-            echo "data: $data\n\n";
+            echo $data;
             @ob_flush();
             flush();
             return strlen($data);
